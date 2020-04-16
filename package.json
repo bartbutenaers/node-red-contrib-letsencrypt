@@ -1,0 +1,33 @@
+{
+    "name": "node-red-contrib-acme-client",
+    "version": "1.0.0",
+    "description": "A Node-RED node which acts like an ACME client, to connect to an Automated Certificate Management Environment (e.g. Letsencrypt)",
+    "dependencies": {
+        "acme-v2": "~3.0.3"
+    },
+    "author": {
+        "name": "Bart Butenaers"
+    },
+    "license": "Apache-2.0",
+    "keywords": [
+        "node-red",
+        "acme",
+        "certificate",
+        "request",
+        "csr",
+        "letsencrypt"
+    ],
+    "bugs": {
+        "url": "https://github.com/bartbutenaers/node-red-contrib-acme-client/issues"
+    },
+    "homepage": "https://github.com/bartbutenaers/node-red-contrib-acme-client",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/bartbutenaers/node-red-contrib-acme-client.git"
+    },
+    "node-red": {
+        "nodes": {
+            "acme-client": "acme_client.js"
+        }
+    }
+}
