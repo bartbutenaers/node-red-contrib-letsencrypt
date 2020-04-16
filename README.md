@@ -130,11 +130,11 @@ To allow Letsencrypt to access the authorization key file, a webserver should li
 
 0.	At startup Node-RED will read the key pair (both private key and public key), based on the file paths specified in the settings.js file:
    ```
-    https: {
+   https: {
         key: fs.readFileSync('privkey.pem'),
         cert: fs.readFileSync('cert.pem')
-    },
-    ```
+   },
+   ```
 Node-RED will start an ExpressJs webserver, which allows you to access the flow editor and the dashboard.  The keypair will be passed to that webserver to allow it to encrypt the data via SSL connections. 
 1.	As soon as an input message arrives, the certificate request flow will be started.
 2.	The private key will be read from the specified “key file” path.  A new key file (and a new private key) is generated, when the there is no file available.  Via the “Always create new key file (with new private key)” a new file (and anew private key) will always be generated, and the original key file will be overwritten!
