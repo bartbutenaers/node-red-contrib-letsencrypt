@@ -1,7 +1,7 @@
 # node-red-contrib-acme-client
 A Node-RED node which acts like an ACME client, to connect to an Automated Certificate Management Environment (e.g. Letsencrypt)
 
-:warning: ***This is an experimental version !!!!*** 
+:warning: ***This is an experimental version !!!!  This version is published on Github to be able to discuss it on the Discourse forum...*** 
 
 ## Install
 
@@ -9,6 +9,33 @@ Run the following npm command in your Node-RED user directory (typically ~/.node
 ```
 npm install bartbutenaers/node-red-contrib-acme-client
 ```
+
+## Basic introduction
+
+To be able to setup a secure SSL (https) connnection to your Node-RED system (flow editor and/or dashboard), an SSL certificate is required:
++ The easiest way is to create your own certificate, however such *self-signed* certificates are not trusted (e.g. by most browsers).
++ To have a trusted certificate, create a CSR (certificate signing request) to have your certificate signed by a trusted CA (Certification Authority).  However such certificates are rather expensive.
++ It is also possible to get a trusted *free* certificate, by sending a request to an Automated Certificate Management Environment (e.g. Letsencrypt).  
+
+To achieve the latter option, an acme client is required which can send the request via the ACME protocol (to prove that you are the real owner of the specified domain).  This node will become the ACME client for your Node-RED flow.  Summarized:
+
+![Summary](https://user-images.githubusercontent.com/14224149/79510872-79eb1a80-803e-11ea-9e47-7a46373a146b.png)
+
+1. The Inject node triggers (every 3 months) the acme client node, which sends a *certificate request* (for your domain) to Letsencrypt.
+2. Letsencrypt checks whether you are really the owner of the specified domain.
+3. If everything is fine, Letsencrypt will return the requested certificate.
+4. The acme client node will store the certificate in the specified cert file, and (optionally) the private key in the specified key file.  Normally this will be the Node-RED cert and key files, which are specified in the Node-RED settings.js file.
+
+Remark: note that - apart from this node - there are other locations where acme clients could be used.  Some examples:
+
+![Acme locations](https://user-images.githubusercontent.com/14224149/79510380-9175d380-803d-11ea-9d1c-d6153a45069c.png)
+
+1. When accessing the router via a Dynamic DNS provider, some of those providers offer acme clients.
+1. Some routers/firewalls offer acme clients (e.g. pfSense, ...).
+1. Lots of webservers/reverse proxies provide acme clients (e.g. Nginx, ...), which can be installed on the same machine as Node-RED or a separate machine in front of the Node-RED machine.
+1. In Node-RED itself by e.g. using this acme client node.
+
+Note that some of these other solutions might be easier to setup (when e.g. there port 80 is accessible from the internet), compared to option 4 ...
 
 ## Node usage
 
