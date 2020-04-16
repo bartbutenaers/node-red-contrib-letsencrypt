@@ -1,0 +1,312 @@
+<!--
+  Copyright 2020, Bart Butenaers
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<script type="text/javascript">
+    RED.nodes.registerType('acme-client',{
+        category: 'dashboard',
+        color: 'rgb( 63, 173, 181)',
+        defaults: {
+            name: {value: ''},
+            domains: {value: null, validate: RED.validators.typedInput("domainsType")},
+            domainsType: {value: "json"},
+            http01challenge: {value: true}, // Always execute this challenge
+            dns01challenge: {value: false}, // Only execute this challenge (extra) in some circumstances
+            webroot: {value: "", required: true},
+            certFilePath: {value: "", required: true},
+            keyFilePath: {value: "", required: true},
+            createNewKey: {value: false},
+            maintainerEmail: {value: "", required:true},
+            subscriberEmail : {value: "", required:true},
+            startWebServer: {value: true, required:true},
+            portNumber: {value: null}
+        },
+        credentials: {
+            acmeAccountKey: {type:"password"},
+            acmeAccount: {type: "password"}
+        },
+        inputs:1,
+        outputs:2,
+        icon: "font-awesome/fa-key",
+        align: 'left',
+        paletteLabel: "Acme client",
+        label: function() {
+            return this.name || "Acme client";
+        },
+        outputLabels: ["success", "failed"],
+        oneditprepare: function() {
+            var node = this;
+            
+            // Unfortunately we cannot simply get the path to the Node-RED cert and key files from RED.settings.
+            // Because the settings.js files contains Javascript code to read the content of both files.  E.g. :
+            //      https: {
+            //          key: fs.readFileSync('privkey.pem'),
+            //          cert: fs.readFileSync('cert.pem')
+            //      },
+            // But of course users can put 'any' kind of code in the settings.js file.
+            // Therefore users will have to specify the file paths manually ...
+
+            $('#node-input-domains').typedInput({
+                typeField: $("#node-input-domainsType"),
+                types: ['json']
+            });
+            
+            $("#node-input-generateKeyPair").click(function () {
+                var dialogHtml;
+
+                var subscriberEmail = $("#node-input-subscriberEmail").val();
+                
+                // Port numbers range from 0 to 65535, but port numbers 0 to 1023 are preserved!
+                if (!subscriberEmail || subscriberEmail === "") {
+                    RED.notify("Please specify a subscriber email address", "error");
+                    return;
+                }
+
+                // The text in the confirmation dialog, depends on whether an account exists already
+                if ($("#node-input-acmeAccountKey").val() || $("#node-input-acmeAccount").val()) {
+                    dialogHtml = '<div><div style="margin: 20px;">In order to use LetsEncrypt and ACME.js, you must agree to the respective Subscriber <a href="https://acme-v01.api.letsencrypt.org/terms" target="_blank"> Agreement and Terms</a>!</div><div style="margin: 20px; font-weight: bold">CAUTION: The existing account information will be deleted!</div><div style="margin: 20px; font-weight: bold">CAUTION: Do not close the config screen until the account has been generated!</div></div>';
+                }
+                else {
+                    dialogHtml = '<div><div style="margin: 20px;">In order to use LetsEncrypt and ACME.js, you must agree to the respective Subscriber <a href="https://acme-v01.api.letsencrypt.org/terms" target="_blank"> Agreement and Terms</a>!</div><div style="margin: 20px; font-weight: bold">CAUTION: Do not close the config screen until the account has been generated!</div></div>';
+                }
+                
+                $('<div></div>').appendTo('body')
+                    .html(dialogHtml)
+                    .dialog({
+                        modal: true,
+                        title: 'Create new Acme account',
+                        zIndex: 10000,
+                        autoOpen: true,
+                        width: 'auto',
+                        resizable: false,
+                        buttons: [{
+                            text: "I Agree",
+                            click: function () {
+                                // Ask the server side flow to generate a new key pair
+                                $.getJSON('acme-client/create_acme_account/' + node.id, function(jsonData) {
+                                    // Show feedback alert
+                                    $('<div></div>').appendTo('body')
+                                        .html('<div title="Acme account" style="margin: 20px;">The account (key pair) has been generated, and will become active after deploy!</div>')
+                                        .dialog({
+                                            modal: true,
+                                            title: 'Acme account created',
+                                            zIndex: 10000,
+                                            autoOpen: true,
+                                            width: 'auto',
+                                            resizable: false,
+                                            buttons: {
+                                                'Ok': function()  {
+                                                    $( this ).dialog( 'close' );
+                                                }
+                                            }
+                                        });
+                                        
+                                    var accountKeyAsString = JSON.stringify(jsonData.accountKey);
+                                    var accountAsString = JSON.stringify(jsonData.account);
+                                    
+                                    $("#node-input-acmeAccountKey").val(accountKeyAsString);
+                                    $("#node-input-acmeAccount").val(accountAsString);
+                                }).error(function() {
+                                    // Show error alert
+                                    $('<div></div>').appendTo('body')
+                                        .html('<div title="Acme account" style="margin: 20px;">Cannot create account!  See Node-RED log for more details...</div>')
+                                        .dialog({
+                                            modal: true,
+                                            title: 'Acme account failed',
+                                            zIndex: 10000,
+                                            autoOpen: true,
+                                            width: 'auto',
+                                            resizable: false,
+                                            buttons: {
+                                                'Ok': function()  {
+                                                    $( this ).dialog( 'close' );
+                                                }
+                                            }
+                                        });
+                                })  
+
+                                $(this).dialog("close");
+                            },
+                        }, {
+                            text: "Cancel",
+                            click: function () {
+                                // Do nothing ...
+                                $(this).dialog("close");
+                            },
+                        }],
+                        close: function(event, ui) {
+                            // Do nothing ...
+                            $(this).remove();
+                        }
+                });
+            });
+            
+            $("#node-input-checkPortFree").on("click", function (e) {
+                var portNumber = $("#node-input-portNumber").val();
+                
+                if (!portNumber) {
+                    RED.notify("Please specify a port number first!", "error");
+                    return;
+                }
+                
+                // Port numbers range from 0 to 65535, but port numbers 0 to 1023 are preserved!
+                if (portNumber < 1024) {
+                    RED.notify("Portnummers from 0 to 1023 are reserved!", "error");
+                    return;
+                }
+
+                $.ajax({
+                    url: "acme-client/check_free_port",
+                    method: "POST",
+                    data: {
+                        portnr: portNumber,
+                        nodeid: node.id
+                    },
+                    success: function(resp) {
+                        if (resp.free) {
+                            RED.notify("Port number " + portNumber + " is free to use.", "success");
+                        }
+                        else {
+                            RED.notify("Port number " + portNumber + " is used already!", "warning");
+                        }
+                    },
+                    error: function(jqXHR,textStatus,errorThrown) {
+                        RED.notify(jqXHR.responseJSON.error, "error");
+                    }
+                    //timeout: 3000
+                });
+            });
+
+            $("#node-input-startWebServer").change(function() {
+                if(this.checked) {
+                    $("#node-input-portNumber").show();
+                    $("#node-input-checkPortFree").show();
+                }
+                else {
+                    $("#node-input-portNumber").hide();
+                    $("#node-input-checkPortFree").hide();
+                }
+            });
+        },
+        oneditsave: function() {
+            var node = this;
+
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="acme-client">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <br>
+    <div class="form-row">
+        <label style="padding-top: 8px" for="node-input-domains"><i class="fa fa-list-ol"></i> Domains</label>
+        <input type="text" id="node-input-domains" style="width:70%" placeholder='["example.com", "*.example.com"]'>
+        <input type="hidden" id="node-input-domainsType">
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <!--TODO Disabled checkbox added for completeness--> 
+        <input type="checkbox" id="node-input-http01challenge" style="display: inline-block; width: auto; vertical-align: top;" disabled>
+        <label for="node-input-http01challenge" style="width:70%;color: #ccc;"> Use the HTTP-01 challenge for domain validation</label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-dns01challenge" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-dns01challenge" style="width:70%;"> Use the DNS-01 challenge for domain validation</label>
+    </div>
+    <div class="form-row">
+        <label for="node-input-webroot"><i class="fa fa-folder-open-o"></i> Web folder</label>
+        <input type="text" id="node-input-webroot" placeholder="Directory for challenge authorization key">
+    </div>
+    <div class="form-row">
+        <label for="node-input-keyFilePath"><i class="fa fa-file"></i> Key file</label>
+        <input type="text" id="node-input-keyFilePath" placeholder="Full file path (privkey.pem)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-certFilePath"><i class="fa fa-file-o"></i> Cert file</label>
+        <input type="text" id="node-input-certFilePath" placeholder="Full file path (cert.pem)">
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-createNewKey" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-createNewKey" style="width:70%;"> Always create new key file (with new private key)</label>
+    </div>
+    <br>
+    <div class="form-row">
+        <label for="node-input-maintainerEmail "><i class="fa fa-envelope-o"></i> Maintainer</label>
+        <input type="email" id="node-input-maintainerEmail" placeholder="Enter email address">
+    </div>
+    <div class="form-row">
+        <label for="node-input-subscriberEmail "><i class="fa fa-envelope-o"></i> Subscriber</label>
+        <input type="email" id="node-input-subscriberEmail" placeholder="Enter email address">
+    </div>
+    <br>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <button id="node-input-generateKeyPair"><i class="fa fa-floppy-o "></i> Create Acme subscriber account</button>
+    </div>
+    <div class="form-row">
+        <label for="node-input-acmeAccountKey"><i class="fa fa-key"></i> Account key</label>
+        <input type="password" id="node-input-acmeAccountKey">
+    </div>
+    <div class="form-row">
+        <label for="node-input-acmeAccount"><i class="fa fa-lock"></i> Account</label>
+        <input type="password" id="node-input-acmeAccount">
+    </div>
+    <br>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-startWebServer" style="display: inline-block; width: auto; vertical-align: baseline;">
+        <label for="node-input-startWebServer" style="width:150px;"> Start webserver on port </label>
+        <input type="number" id="node-input-portNumber" style="width:120px;" placeholder="1024 to 65535" min="1024" max="65535">
+        <button id="node-input-checkPortFree" class="editor-button" title="Check if port is free"><i class="fa fa-thumbs-o-up"></i></button>
+    </div>    
+</script>
+<script type="text/html" data-help-name="acme-client">
+    <p>A Node Red node to provide an ACME client to connect to Let’s Encrypt.</p>
+    <p><strong>Domains:</strong><br/>
+    Provide an array of at least 1 domain name, i.e. the hostname(s) that need to be included into the certificate.  Which means you have to specify the same hostnames (optionally containing wildcards), to which you navigate in your browser's address bar.  Caution: Let’s Encrypt doesn’t issue certificates for bare IP addresses, only domain names!
+    </p>
+    <p><strong>Use the HTTP-01 challenge for domain validation:</strong><br/>
+    The minimum required challenge, that allows LetsEncrypt to validate whether you control the domain.</p>
+    <p><strong>Use the DNS-01 challenge for domain validation:</strong><br/>
+    This is only required in some circumstances, e.g. when wildcards are being used in the domain names.</p>
+    <p><strong>Web folder:</strong><br/>
+    Specify the directory where the authorization key file will need to be stored, that we receive from Letsencrypt (e.g. <code>/var/tmp/acme-challenge</code>).  Make sure that Letsencrypt can access this authorization key file (in the specified folder) via a webserver listening to port 80!</p>
+    <p><strong>Key file:</strong><br/>
+    The path to the key file where the private key is being stored.  In most cases this will be the path to the Node-RED key file (e.g. <code>/home/pi/.node-red/privkey.pem</code>).</p>
+    <p><strong>Cert file:</strong><br/>
+    The path to the cert file where the public key (i.e. certificate) is being stored.  In most cases this will be the path to the Node-RED cert file (e.g. <code>/home/pi/.node-red/cert.pem</code>).</p>
+    <p><strong>Always create new key file (with new private key):</strong><br/>
+    This option determines what to do with the specified private key file:
+    <ul>
+        <li>If selected, a new key file will be created (at the specified file path) and the old one will be removed.  Moreover a new private key will be created, and stored into the key file.  <strong><i>Caution: your existing privte key will get lost!!</i></strong></li>
+        <li>If unselected, the node will try to get an existing private key from the specified key file).  When available, that private key will be used. If nothing found, a new private key will be generated.</li>
+    </ul></p>
+    <p><strong>Maintainer:</strong><br/>
+    The maintainer email address is used by Root (i.e. Acme.js team) to notify you of security notices and bugfixes to ACME.js.  This has to be a valid email address!
+    </p>
+    <p><strong>Subscriber:</strong><br/>
+    The subscriber email address is used by Let’s Encrypt to manage your account and notify you of renewal failures.  This has to be a valid email address!
+    </p>
+    <p><strong>Create Acme subscriber account:</strong><br/>
+    An Acme (i.e. LetsEncrypt) subscriber account will be created, based on the the specified subscriber address, and the result will be stored in the "Account key" and "Account" fields.  This new account will become active as soon as the flow is deployed.  Normally you should create an account only <strong><i>once</i></strong>!</p>
+    <p><strong>Account Key:</strong><br/>
+    Your unique ECDSA (or RSA) account key in JWK format, that will be used to sign all your messages to Letsencrypt.</p>
+    <p><strong>Account:</strong><br/>
+    Your unique account information.</p>
+    <p><strong>Start webserver on port:</strong><br/>
+    To allow Letsencrypt to access the authorization key file, a webserver should listen to port 80 and host that file.  However when no webserver is running, you can ask this node to start temporarily a minimal webserver to host the file.  Since Node-RED most probably isn't running as administrator (i.e. root), it cannot listen to the (preserved) port 80.   As a result:<strong><i> you need to redirect all traffic from port 80 to the specified port number (> 1024) yourself (e.g. via iptables on Linux).</i></strong></p>    
+</script>
