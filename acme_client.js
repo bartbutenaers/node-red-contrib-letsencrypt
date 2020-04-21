@@ -17,38 +17,39 @@
 module.exports = function(RED) {
     var settings = RED.settings;
     const ACME = require('acme-v2');
+    // Number of security libraries build by the rootCompany (@root)
     const Keypairs = require('@root/keypairs');
-    const punycode = require('punycode');
     const CSR = require('@root/csr');
+    const punycode = require('punycode');
     const PEM = require('@root/pem');
     const pkg = require('../package.json');
-    const acmeHttp01WebRoot = require('acme-http-01-webroot')
     const fs = require('fs');
-    const express = require('express');
-    const getPort = require('get-port');
-    const path = require('path');
-    
+   
     function AcmeClientNode(config) {
         RED.nodes.createNode(this, config);
-        this.http01challenge = config.http01challenge;
-        this.dns01challenge  = config.dns01challenge;
+        this.authority       = config.authority; // Currently not used since we only support LetsEncrypt
+        this.dnsProvider     = config.dnsProvider;
         this.maintainerEmail = config.maintainerEmail;
         this.subscriberEmail = config.subscriberEmail;
-        this.webroot         = config.webroot;
         this.certFilePath    = config.certFilePath;
         this.keyFilePath     = config.keyFilePath;
         this.createNewKey    = config.createNewKey;
-        this.startWebServer  = config.startWebServer;
-        this.portNumber      = config.portNumber;
+        this.dnsToken        = config.dnsToken;
+        this.dnsApiUser      = config.dnsApiUser;
+        this.dnsUserName     = config.dnsUserName;
+        this.dnsKey          = config.dnsKey;
+        this.dnsSecret       = config.dnsSecret;
+        this.dnsKeyId        = config.dnsKeyId;
         this.acmeInitialized = false;
         this.acmeBusy        = false;
+        this.directoryUrl    = "";
         // Remark: private key and public key are stored in this.credentials
-                
+               
         var node = this;
-        
+       
         // Convert the typedinput content to a JSON array
-        node.domains = RED.util.evaluateNodeProperty(config.domains, config.domainsType, node); 
-        
+        node.domains = RED.util.evaluateNodeProperty(config.domains, config.domainsType, node);
+       
         if (!Array.isArray(node.domains)) {
             console.log("The Acme domains should be a JSON array of domain names");
             node.domains = null;
@@ -58,20 +59,15 @@ module.exports = function(RED) {
             node.certFilePath = null;
             console.log("The specified certificate file does not exist.");
         }
-        
+       
         if (!node.keyFilePath || !fs.existsSync(node.keyFilePath)) {
             node.keyFilePath = null;
             console.log("The specified key file does not exist.");
         }
-        
-        if (!node.webroot || node.webroot === "") {
-            node.webroot = null;
-            console.log("No webroot directory has been specified, so no token can be published on the web.");
-        }
-        
+       
         // The ACME spec requires clients to have RFC 7231 style User Agent, which can be contstructed based on the package name.
         var packageAgent = 'test-' + pkg.name + '/' + pkg.version;
-        
+       
         // Handle all the Acme.js logging
         function handleAcmeLogging(ev, msg) {
             var text = "Acme " + ev + " message = " + (msg.message || '') + " status = " + (msg.status || '');
@@ -89,16 +85,20 @@ module.exports = function(RED) {
         }
 
         var acme = ACME.create({
-            maintainerEmail: node.maintainerEmail, 
-            packageAgent: packageAgent, 
-            notify: handleAcmeLogging 
+            maintainerEmail: node.maintainerEmail,
+            packageAgent: packageAgent,
+            notify: handleAcmeLogging
         });
 
         // Let’s Encrypt offers two URLs:
-        // - Staging URL (for testing): https://acme-staging-v02.api.letsencrypt.org/directory
-        // - Production URL: https://acme-v02.api.letsencrypt.org/directory
-        // The staging URLs can be used to test things before issuing trusted certificates, to reduce the chance of running up against rate limits.
-        var directoryUrl = 'https://acme-v02.api.letsencrypt.org/directory';
+        if (config.useTestUrl) {
+            // Staging URL to test things before issuing trusted certificates, to reduce the chance of running up against rate limits.
+            node.directoryUrl = 'https://acme-staging-v02.api.letsencrypt.org/directory';
+        }
+        else {
+            // Production URL for real trusted certificates
+            node.directoryUrl = 'https://acme-v02.api.letsencrypt.org/directory';
+        }
 
         // Fetch the remote API and initialize the internal state according to the response.
         // The first time this is executed, the MAINTAINER will get a welcome email from the Acme.js team...
@@ -116,7 +116,7 @@ module.exports = function(RED) {
             // Create an account with a signed JWS message, including your public account key.
             // ACME.js will sign all messages with the public account key.
             console.info("Registering new ACME account for Let’s Encrypt ...");
-            
+           
             // Generate locally an account keypair, from which will need only the private key.
             // Keypairs.js will use native node crypto or WebCrypto to generate the key.
             // And Keypairs.js will use a lightweight parser and packer to translate between formats.
@@ -129,19 +129,19 @@ module.exports = function(RED) {
                 accountKey: accountKey
             });
             console.info('created account with id', acmeAccount.key.kid);
-            
+           
             // TODO controleren of deze newAccount.cert en newAccount.key bestaan !!!!!!!!!!!!!!!!!!!!!!!
             var acmeInformation = {
                 accountKey : accountKey,
                 account: acmeAccount
             }
-            
+           
             return acmeInformation;
         }
 
         async function getServerKey(node) {
             var serverKey;
-            
+           
             // The msg.payload will contain the path to the keystores
             // TODO or get the path from RED.settings
             // TODO moeten we https://github.com/node-red/node-red/wiki/Editor-Runtime-API#settingsgenerateuserkeyopts--promisestring gebruiken ?????????
@@ -150,106 +150,207 @@ module.exports = function(RED) {
             // Try to load an existing key pair from the specified key file.
             // This is the key used by the Node-RED webserver (typically named `privkey.pem`, `key.crt`, or `bundle.pem`).
             // TODO dit faalt als de file niet bestaat !!!!!!!!!!
-            
+           
             // Read the existing key file only when requested
             if (!node.createNewKey) {
                 var serverPem  = fs.readFileSync(node.keyFilePath, 'ascii');
-                
+               
                 if (serverPem) {
                     serverKey  = await Keypairs.import({ pem: serverPem });
                 }
             }
-            
+           
             if (!serverKey) {
                 // When no server key pair is available, let's generate a new one ...
                 var serverKeypair = await Keypairs.generate({ kty: 'RSA', format: 'jwk' });
                 serverKey = serverKeypair.private;
                 node.newServerKeyCreated = true;
             }
-            
+           
             return serverKey;
         }
-        
+       
         async function createCSR(serverKey, encodedDomains) {
             var encoding = 'der';
             var typ = 'CERTIFICATE REQUEST';
 
-            var csrDer = await CSR.csr({ 
-                jwk: serverKey, 
-                domains : encodedDomains, 
+            var csrDer = await CSR.csr({
+                jwk: serverKey,
+                domains : encodedDomains,
                 encoding : encoding
             });
-            
+           
             // TODO checken of csrDer null is ...
-            var csr = PEM.packBlock({ 
-                type: typ, 
-                bytes: csrDer 
+            var csr = PEM.packBlock({
+                type: typ,
+                bytes: csrDer
             });
-            
+           
             return csr;
         }
-        
-        async function createSslCertificate(node, csr, encodedDomains, challenges) {
+       
+        async function createSslCertificate(node, csr, encodedDomains) {
+            var dns01Challenge;
             var acmeAccount = JSON.parse(node.credentials.acmeAccount);
             var acmeAccountKey = JSON.parse(node.credentials.acmeAccountKey);
-            
+
+            // In order to validate wildcard, localhost, and private domains through Let's Encrypt, you must use set some special TXT records in your domain's DNS.
+            // This is called the ACME DNS-01 Challenge
+            // For example:
+            //
+            // dig TXT example.com
+            // ;; QUESTION SECTION:
+            // ;_acme-challenge.example.com. IN TXT
+            // ;; ANSWER SECTION:
+            // _acme-challenge.example.com. 300 IN TXT "xxxxxxx"
+            // _acme-challenge.example.com. 300 IN TXT "xxxxxxx"
+
+            // Each plugin will define some options, such as an api key, or username and password that are specific to that plugin.
+            switch (node.dnsProvider) {
+                // https://www.npmjs.com/package/acme-dns-01-cloudflare
+                case "cloudflare":
+                    dns01Challenge = require('acme-dns-01-cloudflare').create({
+                        token: node.dnsToken,
+                    });
+                    break;
+                case "digitalocean":
+                    // https://www.npmjs.com/package/acme-dns-01-digitalocean
+                    dns01Challenge = require('acme-dns-01-digitalocean').create({
+                        baseUrl: 'https://api.digitalocean.com/v2/domains',
+                        token: node.dnsToken
+                    });
+                    break;
+                case "duckdns":
+                    // https://www.npmjs.com/package/acme-dns-01-duckdns
+                    dns01Challenge = require('acme-dns-01-duckdns').create({
+                        baseUrl: 'https://www.duckdns.org/update',
+                        token: node.dnsToken
+                    });
+                    break;
+                case "dnsimple":
+                    // https://www.npmjs.com/package/acme-dns-01-dnsimple
+                    dns01Challenge = require('acme-dns-01-dnsimple').create({
+                        baseUrl: 'https://api.dnsimple.com/v2/',
+                        account: node.dnsUserName,
+                        token: node.dnsToken
+                    });
+                    break;
+                case "godaddy":
+                    // https://www.npmjs.com/package/acme-dns-01-godaddy
+                    dns01Challenge = require('acme-dns-01-godaddy').create({
+                        baseUrl: 'https://api.godaddy.com',
+                        key: node.dnsKey,
+                        secret: node.dnsSecret
+                    });
+                    break;
+                case "gandi":
+                    // https://www.npmjs.com/package/acme-dns-01-gandi
+                    dns01Challenge = require('acme-dns-01-gandi').create({
+                        baseUrl: 'https://dns.api.gandi.net/api/v5/',
+                        token: node.dnsToken
+                    });
+                    break;
+                case "namecheap":
+                    // https://www.npmjs.com/package/acme-dns-01-namecheap
+                    dns01Challenge = require('acme-dns-01-namecheap').create({
+                        apiUser: node.dnsApiUser,
+                        apiKey: node.dnsKey,
+                        clientIp: '121.22.123.22', // TODO ?????????????????????????????????
+                        username: node.dnsUserName,
+                        baseUrl: 'https://api.namecheap.com/xml.response'
+                    });
+                    break;
+                case "namedotcom":
+                    // https://www.npmjs.com/package/acme-dns-01-namedotcom
+                    dns01Challenge = require('acme-dns-01-namedotcom').create({
+                        baseUrl: 'http://api.name.com/v4/',
+                        username: node.dnsUserName,
+                        token: node.dnsToken
+                    });
+                    break;
+                case "route53":
+                    // https://www.npmjs.com/package/acme-dns-01-route53
+                    dns01Challenge = require('acme-dns-01-route53').create({
+                        aws_access_key_id: node.dnsKeyId,
+                        aws_secret_access_key: node.dnsKey
+                        // debug: true // enable this for detailed logs
+                        // ensureSync: true // AWS Route 53 does transactional changes which means it has a status of PENDING until in ensures that changes complete entirely on any individual DNS server, or not at all. You can force wait by setting this flag to true and it'll poll the changes until they're no longer pending.
+                    });
+                    break;
+                case "vultr":
+                    // https://www.npmjs.com/package/acme-dns-01-vultr
+                    dns01Challenge = require('acme-dns-01-vultr').create({
+                        baseUrl: 'https://api.vultr.com/v1/dns',
+                        token: node.dnsToken
+                    });
+                    break;
+                case "zeit":
+                    // https://www.npmjs.com/package/acme-dns-01-zeit
+                    dns01Challenge = require('acme-dns-01-zeit').create({
+                        token: node.dnsToken
+                    });
+                    break;                   
+            }
+     
             var pems = await acme.certificates.create({
                 account: acmeAccount,
                 accountKey: acmeAccountKey,
                 csr: csr,
                 domains: encodedDomains,
-                challenges: challenges
+                challenges: {
+                    'dns-01': dns01Challenge
+                }
             });
-            
+          
             return pems
         }
-        
+       
         function handleError(node, topic, err) {
             node.error("Error in " + topic + " : " + err);
             node.send([null, {payload: err, topic: topic}]);
             node.acmeBusy = false;
             node.status({fill:"red", shape:"dot", text:topic});
         }
-        
+       
         node.on("input", async function(msg) {
             var serverKey, csr, pems, webServer;
-            
+           
             if (this.acmeBusy) {
-                console.log("The node is still busy with a previous certificate request."); 
+                console.log("The node is still busy with a previous certificate request.");
                 return;
             }
-            
+           
             if (!node.domains) {
-                console.log("A domain list should be specified, in order to send a CSR to Letsencrypt."); 
+                console.log("A domain list should be specified, in order to send a CSR to Letsencrypt.");
                 return;
             }
-            
+           
             if (!node.keyFilePath) {
                 console.log("A key file should be specified, in order to send a CSR to Letsencrypt.");
                 return;
             }
-            
+           
             if (!node.certFilePath) {
                 console.log("A certificate file should be specified, in order to send a CSR to Letsencrypt.");
                 return;
             }
-            
+           
             if (!node.acmeInitialized) {
                 console.log("Wait until the ACME client has been initialized, before sending a CSR to Letsencrypt.");
                 return;                
             }
-            
+           
             if (!node.webroot) {
                 console.log("A webroot directory should be specified, otherwise the http-01 challenge request from Letsencrypt will fail.");
                 return;                
             }
-            
+           
             // TODO this takes very long to display ...  Is that caused perhaps somehow by the 'await' statements??
             node.status({fill:"blue", shape:"ring", text:"requesting..."});
-            
+           
             this.acmeBusy = true;
             node.newServerKeyCreated = false;
-            
+           
             try {
                 // Create (or load) the Node-RED server Keypair
                 serverKey = await getServerKey(node);
@@ -273,95 +374,6 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Setup a chain of challenge modules: first http-01 and then dns-01.
-            // Such a challenge is a strategy to validate a domain (see https://letsencrypt.org/docs/challenge-types/).
-            // Use strategy dns-01 in following circumstances:
-            // - for wildcards
-            // - for local/private domains
-            // - port number apart from 80 or 443
-            var challenges = {};
-            
-            // Apply the http-01 challenge (first) when required
-            if (node.http01challenge) {
-                challenges['http-01'] = acmeHttp01WebRoot.create({
-                    // Make sure that Acme.js will store the token file (which it receives from Letsencrypt),
-                    // into the specified webroot directory.
-                    webroot: node.webroot
-                });
-            }
-            
-            // Apply the dns-01 challenge (last) when required
-            if (node.dns01challenge) {
-                challenges['dns-01'] = {
-                    init: async function(deps) {
-                        // includes the http request object to use
-                    },
-                    zones: async function(args) {
-                        // return a list of zones
-                    },
-                    set: async function(args) {
-                        // set a TXT record with the lowest allowable TTL
-                    },
-                    get: async function(args) {
-                        // check the TXT record exists
-                    },
-                    remove: async function(args) {
-                        // remove the TXT record
-                    },
-                    // how long to wait after *all* TXTs are set
-                    // before presenting them for validation
-                    // (for most this is seconds, for some it may be minutes)
-                    propagationDelay: 5000
-                }
-            }
-            
-            // Start a temporary webserver if required.
-            // Indeed in the next step, the HTTP-01 challenge will request a file from http://<YOUR_DOMAIN>/.well-known/acme-challenge/<TOKEN>
-            if (node.startWebServer) {
-                if (!node.portNumber) {
-                    handleError(node, "START_WEBSERVER", "Missing port number");
-                    return;
-                }
-        
-                node.portNumber = parseInt(node.portNumber);
-
-                if (node.portNumber < 1024 || node.portNumber > 65535) {
-                    handleError(node, "START_WEBSERVER", "Invalid port number: " + node.portNumber);
-                    return;
-                }
-        
-                var freePortNumber = await getPort({ port: node.portNumber });
-                
-                if (freePortNumber != node.portNumber) {
-                    handleError(node, "START_WEBSERVER", "Port " + node.portNumber + " is already in use!");
-                    return;
-                }
-        
-                // Start a temporary ExpressJs webserver, to make the key authorization file available for Letsencrypt.
-                var app = express();
-                app.get("/.well-known/acme-challenge/:challenge", function(req, res) {
-                    var requestedChallenge = req.params.challenge;
-                    
-                    node.log("Received LetsEncrypt http-01 challenge request " + requestedChallenge);
-                 
-                    var authorizationFilePath = path.join(node.webroot, requestedChallenge);
-                    
-                    // At this moment Acme.js should have stored temporarily the key authorization file in our webroot directory.
-                    if (!fs.existsSync(authorizationFilePath)) {
-                        res.status(404).send("No key authorization file for challenge " + requestedChallenge);
-                        node.log("'No key authorization file for challenge " + requestedChallenge);
-                    }
-                    else {
-                        res.status(200).sendFile(authorizationFilePath);
-                        node.log("Key authorization file " + authorizationFilePath + " has been returned to Letsencrypt");
-                    }
-                });
-
-                webServer = app.listen(this.portNumber, function() {
-                    node.log("Acme client started listening on port " + node.portNumber);
-                });
-            }
-            
             try {
                 // Acme.js will do a lots of things here:
                 // - Do a dry run to ensure that the basic stuff is already ok.
@@ -371,26 +383,19 @@ module.exports = function(RED) {
                 // - LetsEncrypt will call our webserver (during the http-01 challenge) to request the authorization file.  
                 //   This way Letsencrypt is sure that we 'control' (as root) the domains that we have specified...
                 // - Once LetsEncrypt has finished his checks, Acme.js will remove the key authorization file.
-                pems = await createSslCertificate(node, csr, encodedDomains, challenges);
+                pems = await createSslCertificate(node, csr, encodedDomains);
             }
             catch (err) {
                 handleError(node, "CREATE_CERTIFICATE", err);
                 return;
             }
-            finally {
-                // We can stop our temporary webserver (if started), since the temporary key authorization file has been removed anyway
-                if (webServer) {
-                    webServer.close();
-                    node.log("Acme client stopped listening on port " + node.portNumber);
-                }                    
-            }
-            
+           
             // When we arrive here, we have received a new certificate from LetsEncrypt...
             // Save the new certificate (and the entire certificate chain) into the specified key file
             var fullchain = pems.cert + '\n' + pems.chain + '\n';
             fs.writeFileSync(node.certFilePath, fullchain, {encoding: 'ascii'});
             node.log("Acme client has stored the new certificate into " + node.certFilePath);
-            
+           
             if (node.newServerKeyCreated) {
                 // When a new server key has been created, we will store it into the specified key file.
                 // That way Node-RED has the entire keypair, i.e. the private key and the corresponding public key (= certificate).
@@ -399,13 +404,13 @@ module.exports = function(RED) {
                 serverPem = await Keypairs.export({ jwk: serverKey });
                 fs.writeFileSync(node.keyFilePath, serverPem, 'ascii');
             }
-            
+           
             node.status({fill:"green", shape:"dot", text:"cert loaded"});
-            
+           
             this.acmeBusy = false;
             node.send([{payload: "success"}, null]);
         });        
-        
+       
         node.on("close", function() {
             this.status({});
             this.acmeBusy = false;
@@ -421,22 +426,22 @@ module.exports = function(RED) {
             acmeAccount:    {type: "password"}
         }
     });
-    
+   
     // Make the key pair generation available to the config screen (in the flow editor)
     RED.httpAdmin.get('/acme-client/:cmd/:id', RED.auth.needsPermission('acme-client.write'), async function(req, res){
         var acmeClientNode = RED.nodes.getNode(req.params.id);
-        
+       
         if (!acmeClientNode) {
             console.log("Cannot find Acme Client node with id = " + req.params.id);
             res.status(404).json({error: 'Unknown Acme Client node'});
             return;
         }
-        
+       
         switch (req.params.cmd) {
             case "create_acme_account":
                 try {
                     var acmeInformation = await acmeClientNode.createAcmeAccount(res);
-                    
+                   
                     // Return the acme informationto the config screen (since it needs to be stored in the node's credentials)
                     res.json(acmeInformation);
                 }
@@ -451,32 +456,5 @@ module.exports = function(RED) {
                 res.status(404).json({error: 'Unknown command'});
                 return;
         }
-    });
-    
-    // Make the free port checking available to the config screen (in the flow editor)
-    RED.httpAdmin.post('/acme-client/check_free_port', RED.auth.needsPermission('acme-client.write'), async function(req, res){
-        // Get the POST parameter(s)
-        var portNumber = req.body.portnr;
-        
-        if (!portNumber) {
-            console.log("Missing port number");
-            res.status(200).json({error: "Missing port number"});
-            return;
-        }
-        
-        portNumber = parseInt(portNumber);
-
-        if (portNumber < 1024 || portNumber > 65535) {
-            console.log("Invalid port number: " + portNumber);
-            res.status(200).json({error: 'Invalid port number'});
-            return;
-        }
-        
-        var freePortNumber = await getPort({ port: portNumber });
-        
-        // When the specified port number is not free, another (random) free port number will be returned
-        var free = (freePortNumber === portNumber);
-        
-        res.json({ free: free });
     });
 }
