@@ -22,7 +22,7 @@ module.exports = function(RED) {
     const CSR = require('@root/csr');
     const punycode = require('punycode');
     const PEM = require('@root/pem');
-    const pkg = require('../package.json');
+    const pkg = require('./package.json');
     const fs = require('fs');
    
     function AcmeClientNode(config) {
@@ -71,7 +71,7 @@ module.exports = function(RED) {
         // Handle all the Acme.js logging
         function handleAcmeLogging(ev, msg) {
             var text = "Acme " + ev + " message = " + (msg.message || '') + " status = " + (msg.status || '');
-    debugger;
+
             switch(ev) {
                 case 'error':
                     node.error(text);
@@ -103,7 +103,7 @@ module.exports = function(RED) {
         // Fetch the remote API and initialize the internal state according to the response.
         // The first time this is executed, the MAINTAINER will get a welcome email from the Acme.js team...
         // You don't need any account yet at this point ...
-        acme.init(directoryUrl).then(function () {
+        acme.init(node.directoryUrl).then(function () {
             node.acmeInitialized = true;
         });
 
@@ -337,11 +337,6 @@ module.exports = function(RED) {
            
             if (!node.acmeInitialized) {
                 console.log("Wait until the ACME client has been initialized, before sending a CSR to Letsencrypt.");
-                return;                
-            }
-           
-            if (!node.webroot) {
-                console.log("A webroot directory should be specified, otherwise the http-01 challenge request from Letsencrypt will fail.");
                 return;                
             }
            
