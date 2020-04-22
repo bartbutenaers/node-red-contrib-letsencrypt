@@ -220,119 +220,113 @@
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
-    <br>
-    <div class="form-row">
-        <label for="node-input-authority"><i class="fa fa-industry"></i> Authority</label>
-        <select id="node-input-authority" disabled>
-            <option value="letsencrypt">LetsEncrypt</option> 
-        </select>
-    </div>
-    <div class="form-row">
-        <label for="node-input-dnsProvider"><i class="fa fa-share"></i> DNS provider</label>
-        <select id="node-input-dnsProvider">
-            <option value="cloudflare">CloudFlare</option>
-            <option value="digitalocean">Digital Ocean</option>
-            <option value="dnsimple">DNSimple</option>
-            <option value="duckdns">DuckDNS</option> 
-            <option value="freedns">FreeDNS</option>
-            <option value="godaddy">GoDaddy</option>
-            <option value="gandi">Gandi</option>
-            <option value="lightsail">LightSail</option>
-            <option value="namecheap">NameCheap</option>
-            <option value="namedotcom">Name.com</option>
-            <option value="route53">Route53 (AWS)</option>
-            <option value="vultr">Vultr</option>
-        </select>
-    </div>
-    <div class="form-row dnsDetail-row" id="dnsTokenRow">
-        <label>&nbsp;</label>
-        <label for="node-input-dnsToken"><i class="fa fa-file"></i> Token</label>
-        <input type="text" id="node-input-dnsToken" placeholder="DNS token">
-    </div>
-    <div class="form-row dnsDetail-row" id="dnsUserRow">
-        <label>&nbsp;</label>
-        <label for="node-input-dnsUserName"><i class="fa fa-file"></i> User</label>
-        <input type="text" id="node-input-dnsUserName" placeholder="DNS user name">
-    </div>
-    <div class="form-row dnsDetail-row" id="dnsEmailRow">
-        <label>&nbsp;</label>
-        <label for="node-input-dnsEmail"><i class="fa fa-file"></i> Email</label>
-        <input type="text" id="node-input-dnsEmail" placeholder="DNS email address">
-    </div>
-    <div class="form-row dnsDetail-row" id="dnsApiUserRow">
-        <label>&nbsp;</label>
-        <label for="node-input-dnsApiUser"><i class="fa fa-file"></i> API user</label>
-        <input type="text" id="node-input-dnsApiUser" placeholder="DNS API user">
-    </div>           
-    <div class="form-row dnsDetail-row" id="dnsKeyIdRow">
-        <label>&nbsp;</label>
-        <label for="node-input-dnsKeyId"><i class="fa fa-file"></i> Key Id</label>
-        <input type="text" id="node-input-dnsKeyId" placeholder="DNS key id">
-    </div>                
-    <div class="form-row dnsDetail-row" id="dnsKeyRow">
-        <label>&nbsp;</label>
-        <label for="node-input-dnsKey"><i class="fa fa-file"></i> Key</label>
-        <input type="text" id="node-input-dnsKey" placeholder="DNS key">
-    </div>              
-    <div class="form-row dnsDetail-row" id="dnsSecretRow">
-        <label>&nbsp;</label>
-        <label for="node-input-dnsSecret"><i class="fa fa-file"></i> Secret</label>
-        <input type="text" id="node-input-dnsSecret" placeholder="DNS secret">
-    </div>              
-    <div class="form-row">
-        <label style="padding-top: 8px" for="node-input-domains"><i class="fa fa-list-ol"></i> Domains</label>
-        <input type="text" id="node-input-domains" style="width:70%" placeholder='["example.com", "*.example.com"]'>
-        <input type="hidden" id="node-input-domainsType">
-    </div>
-    <div class="form-row">
-        <label for="node-input-keyFilePath"><i class="fa fa-file"></i> Key file</label>
-        <input type="text" id="node-input-keyFilePath" placeholder="Full file path (privkey.pem)">
-    </div>
-    <div class="form-row">
-        <label for="node-input-certFilePath"><i class="fa fa-file-o"></i> Cert file</label>
-        <input type="text" id="node-input-certFilePath" placeholder="Full file path (cert.pem)">
-    </div>
-    <div class="form-row">
-        <label>&nbsp;</label>
-        <input type="checkbox" id="node-input-createNewKey" style="display: inline-block; width: auto; vertical-align: top;">
-        <label for="node-input-createNewKey" style="width:70%;"> Always create new key file (with new private key)</label>
-    </div>
-    <br>
-    <div class="form-row">
-        <label for="node-input-maintainerEmail "><i class="fa fa-envelope-o"></i> Maintainer</label>
-        <input type="email" id="node-input-maintainerEmail" placeholder="Enter email address">
-    </div>
-    <div class="form-row">
-        <label for="node-input-subscriberEmail "><i class="fa fa-envelope-o"></i> Subscriber</label>
-        <input type="email" id="node-input-subscriberEmail" placeholder="Enter email address">
-    </div>
-    <br>
-    <div class="form-row">
-        <label>&nbsp;</label>
-        <button id="node-input-generateKeyPair"><i class="fa fa-floppy-o "></i> Create Acme subscriber account</button>
-    </div>
-    <div class="form-row">
-        <label for="node-input-acmeAccountKey"><i class="fa fa-key"></i> Account key</label>
-        <input type="password" id="node-input-acmeAccountKey">
-    </div>
-    <div class="form-row">
-        <label for="node-input-acmeAccount"><i class="fa fa-lock"></i> Account</label>
-        <input type="password" id="node-input-acmeAccount">
-    </div>
-    <div class="form-row">
-        <label>&nbsp;</label>
-        <input type="checkbox" id="node-input-useTestUrl" style="display: inline-block; width: auto; vertical-align: top;">
-        <label for="node-input-useTestUrl" style="width:70%;"> Connect to the LetsEncrypt TEST system</label>
-    </div>    
+    <fieldset>
+        <legend>Https</legend>
+        <div class="form-row">
+            <label style="padding-top: 8px" for="node-input-domains"><i class="fa fa-list-ol"></i> Domains</label>
+            <input type="text" id="node-input-domains" style="width:70%" placeholder='["example.com", "*.example.com"]'>
+            <input type="hidden" id="node-input-domainsType">
+        </div>
+        <div class="form-row">
+            <label for="node-input-keyFilePath"><i class="fa fa-file"></i> Key file</label>
+            <input type="text" id="node-input-keyFilePath" placeholder="Full file path (privkey.pem)">
+        </div>
+        <div class="form-row">
+            <label for="node-input-certFilePath"><i class="fa fa-file-o"></i> Cert file</label>
+            <input type="text" id="node-input-certFilePath" placeholder="Full file path (cert.pem)">
+        </div>
+        <div class="form-row">
+            <label>&nbsp;</label>
+            <input type="checkbox" id="node-input-createNewKey" style="display: inline-block; width: auto; vertical-align: top;">
+            <label for="node-input-createNewKey" style="width:70%;"> Always create new key file (with new private key)</label>
+        </div>
+        <br>
+        <div class="form-row">
+            <label for="node-input-maintainerEmail "><i class="fa fa-envelope"></i> Maintainer</label>
+            <input type="email" id="node-input-maintainerEmail" placeholder="Enter email address">
+        </div>
+    <fieldset>
+    <fieldset>
+        <legend>DNS provider</legend>
+        <div class="form-row">
+            <label for="node-input-dnsProvider"><i class="fa fa-share"></i> Provider</label>
+            <select id="node-input-dnsProvider">
+                <option value="cloudflare">CloudFlare</option>
+                <option value="digitalocean">Digital Ocean</option>
+                <option value="dnsimple">DNSimple</option>
+                <option value="duckdns">DuckDNS</option> 
+                <option value="freedns">FreeDNS</option>
+                <option value="godaddy">GoDaddy</option>
+                <option value="gandi">Gandi</option>
+                <option value="lightsail">LightSail</option>
+                <option value="namecheap">NameCheap</option>
+                <option value="namedotcom">Name.com</option>
+                <option value="route53">Route53 (AWS)</option>
+                <option value="vultr">Vultr</option>
+            </select>
+        </div>
+        <div class="form-row dnsDetail-row" id="dnsTokenRow">
+            <label for="node-input-dnsToken"><i class="fa fa-file"></i> Token</label>
+            <input type="text" id="node-input-dnsToken" placeholder="DNS token">
+        </div>
+        <div class="form-row dnsDetail-row" id="dnsUserRow">
+            <label for="node-input-dnsUserName"><i class="fa fa-file"></i> User</label>
+            <input type="text" id="node-input-dnsUserName" placeholder="DNS user name">
+        </div>
+        <div class="form-row dnsDetail-row" id="dnsEmailRow">
+            <label for="node-input-dnsEmail"><i class="fa fa-file"></i> Email</label>
+            <input type="text" id="node-input-dnsEmail" placeholder="DNS email address">
+        </div>
+        <div class="form-row dnsDetail-row" id="dnsApiUserRow">
+            <label for="node-input-dnsApiUser"><i class="fa fa-file"></i> API user</label>
+            <input type="text" id="node-input-dnsApiUser" placeholder="DNS API user">
+        </div>
+        <div class="form-row dnsDetail-row" id="dnsKeyIdRow">
+            <label for="node-input-dnsKeyId"><i class="fa fa-file"></i> Key Id</label>
+            <input type="text" id="node-input-dnsKeyId" placeholder="DNS key id">
+        </div>
+        <div class="form-row dnsDetail-row" id="dnsKeyRow">
+            <label for="node-input-dnsKey"><i class="fa fa-file"></i> Key</label>
+            <input type="text" id="node-input-dnsKey" placeholder="DNS key">
+        </div>
+        <div class="form-row dnsDetail-row" id="dnsSecretRow">
+            <label for="node-input-dnsSecret"><i class="fa fa-file"></i> Secret</label>
+            <input type="text" id="node-input-dnsSecret" placeholder="DNS secret">
+        </div>
+    </fieldset>
+    <fieldset>
+        <legend>LetsEncrypt</legend>
+        <div class="form-row">
+            <label for="node-input-authority"><i class="fa fa-university"></i> Authority</label>
+            <select id="node-input-authority" disabled>
+                <option value="letsencrypt">LetsEncrypt</option> 
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="node-input-subscriberEmail "><i class="fa fa-envelope-o"></i> Subscriber</label>
+            <input type="email" id="node-input-subscriberEmail" placeholder="Enter email address">
+        </div>
+        <br>
+        <div class="form-row">
+            <label>&nbsp;</label>
+            <button id="node-input-generateKeyPair"><i class="fa fa-floppy-o "></i> Create Acme subscriber account</button>
+        </div>
+        <div class="form-row">
+            <label for="node-input-acmeAccountKey"><i class="fa fa-key"></i> Account key</label>
+            <input type="password" id="node-input-acmeAccountKey">
+        </div>
+        <div class="form-row">
+            <label for="node-input-acmeAccount"><i class="fa fa-lock"></i> Account</label>
+            <input type="password" id="node-input-acmeAccount">
+        </div>
+    </fieldset>        
 </script>
 <script type="text/html" data-help-name="acme-client">
     <p>A Node Red node to provide an ACME client to connect to Let’s Encrypt (based on the DNS01 challenge).</p>
-    <p><strong>Authority:</strong><br/>
-    The name of the certification authority (CA) that will sign our certificates.  Currently only LetsEncrypt is supported.</p>  
-    <p><strong>DNS provider:</strong><br/>
-    The name of the DNS provider that is being used, which owns the specified domains (see below).</p>
     <p><strong>Domains:</strong><br/>
-    Provide an array of at least 1 domain name, i.e. the hostname(s) that need to be included into the certificate.  Which means you have to specify the same hostnames (optionally containing wildcards), to which you navigate in your browser's address bar.  Caution: Let’s Encrypt doesn’t issue certificates for bare IP addresses, only domain names!
+    Provide an array of at least 1 domain name, i.e. the hostname(s) that need to be included into the certificate.  Which means you have to specify the same hostnames (optionally containing wildcards), to which you navigate in your browser's address bar.  
+    Caution: Let’s Encrypt doesn’t issue certificates for bare IP addresses, only domain names!
+    Caution: The provided domains should be owned by the DNS provider you have specified!
     </p>
     <p><strong>Key file:</strong><br/>
     The path to the key file where the private key is being stored.  In most cases this will be the path to the Node-RED key file (e.g. <code>/home/pi/.node-red/privkey.pem</code>).</p>
@@ -345,8 +339,11 @@
         <li>If unselected, the node will try to get an existing private key from the specified key file).  When available, that private key will be used. If nothing found, a new private key will be generated.</li>
     </ul></p>
     <p><strong>Maintainer:</strong><br/>
-    The maintainer email address is used by Root (i.e. Acme.js team) to notify you of security notices and bugfixes to ACME.js.  This has to be a valid email address!
-    </p>
+    The maintainer email address is used by Root (i.e. Acme.js team) to notify you of security notices and bugfixes to ACME.js.  This has to be a valid email address!</p>
+    <p><strong>Provider:</strong><br/>
+    The name of the DNS provider that is being used, which owns the specified domains (see below).  Depending on the selected DNS provider, the related authentication fields will be displayed.</p>
+    <p><strong>Authority:</strong><br/>
+    The name of the certification authority (CA) that will sign our certificates.  Currently only LetsEncrypt is supported.</p>  
     <p><strong>Subscriber:</strong><br/>
     The subscriber email address is used by Let’s Encrypt to manage your account and notify you of renewal failures.  This has to be a valid email address!
     </p>
