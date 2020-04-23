@@ -23,19 +23,39 @@ To be able to setup a secure SSL (https) connnection to your Node-RED system (fl
 + To have a trusted certificate, create a CSR (certificate signing request) to request a trusted CA (Certification Authority) company to sign your certificate.  However such certificates are rather expensive.
 + It is also possible to get a trusted *free* certificate, by sending a automated CSR request to an Automated Certificate Management Environment (e.g. Letsencrypt).  
 
-To achieve the latter option, an acme client is required which can send the request via the ACME protocol (Automated Certificate Management Environment), to prove that you are the real owner of the specified domain.  This node will act as an ACME client for your Node-RED flow.  Summarized:
+To achieve the latter option, an acme client is required which can send the request via the ACME protocol (Automated Certificate Management Environment), to prove that you are the real owner of the specified domain.  This node will act as an ACME client for your Node-RED flow. 
 
-![Summary](https://user-images.githubusercontent.com/14224149/80039240-a77d0b80-84f7-11ea-8921-ca6f96abde67.png)
+TODO Normally this will be the Node-RED cert and key files, which are specified in the Node-RED settings.js file.
+At startup Node-RED will read the key pair (both private key and public key), based on the file paths specified in the settings.js file:
+```
+   https: {
+        key: fs.readFileSync('privkey.pem'),
+        cert: fs.readFileSync('cert.pem')
+   },
+```
+This is how the entire process flow looks like:
 
-1. The Inject node triggers (e.g. every 3 months) the acme client node, which sends a *certificate request* (for your domain) to Letsencrypt.  
-   P.S. the *domain* is the hostname being used in the url to access your Node-RED application (```https://<domain>:1880```).
-2. LetsEncrypt sends a DNS verification token.
-3. The acme client node will send the DNS verification token to your DNS provider, where it will be available for 5 minutes (as a TXT record).
+![Summary diagram](https://user-images.githubusercontent.com/14224149/80138962-fd0ff180-85a5-11ea-826a-786d8714613c.png)
+
+1. The Inject node triggers (e.g. every 3 months) the acme client node, which will try to load the private key from the key (pem) file.  When no private key is found a new key pair is generated (i.e. both a private key and a corresponding public key).
+
+2. The acme client node, which will try to load the public key from the cert file.
+
+3. The acme client node sends a *certificate request* (for the specified domain) to Letsencrypt.  
+   P.S. The CSR contains our public key and the information that has been specified (domains, ...).
+   
+4. LetsEncrypt sends a DNS verification token to the acme client node.
+
+5. The acme client node will send the DNS verification token to the specified DNS provider, where it will be added to your domain for 5 minutes (as an informational TXT record).
    P.S. To make sure your DNS provider allows you to do that, you need to authenticate yourself at the DNS provider (by filling in the DNS related fields in the config screen).
-4. Letsencrypt checks whether you are the real owner of the specified domain, by getting the DNS verification token from your DNS provider.
-   P.S. If LetsEncrypt can confirm that the token (available at your DNS provider) is identical to the token that they have send to you, then they know that you own the specified (sub)domain for that DNS provider.
-5. If everything went well, Letsencrypt will return the requested signed certificate.
-6. The acme client node will store the certificate in the specified cert file, and (optionally) the private key in the specified key file.  Normally this will be the Node-RED cert and key files, which are specified in the Node-RED settings.js file.
+   
+6. Letsencrypt checks whether you are the real owner of the specified domain, by getting the DNS verification token from your DNS provider.  If LetsEncrypt can confirm that the token (available at your DNS provider) is identical to the token that they have send to you, then they know that you own the specified (sub)domain for that DNS provider.
+   
+7. If everything went well, Letsencrypt will return the requested signed certificate.
+
+8. The acme client node will store the private key in the specified key file, only when a new private key has been generated (in step 1).  
+
+9. The acme client node will store the renewed certificate in the specified cert file.   This way the entire keypair is updated in both files!
 
 CAUTION: currently you will need to restart your Node-RED server, to make sure the renewed certificate is being loaded by Node-RED.  However I'm working on a [pull-request proposal](https://discourse.nodered.org/t/pull-request-proposal-automatic-certificate-renewal/21282) to have automatic certificate renewal in Node-RED.
 
@@ -121,7 +141,7 @@ There are some limitations:
 +	The hostnames should be public accessible, which means Letsencrypt should be able to access them via the internet (on port 80)!
 +	It is not possible to specify IP addresses instead of hostnames.
 
-Make sure you specify the same hostnames as you use in your browsers address bar!  Because the browser will check whether that hostname matches with the hostname inside the certificate.  If those don’t match, an “invalid certificate” warning will appear …
+Make sure you specify the same hostnames as you use in your browsers address bar (```https://<domain>:1880```).!  Because the browser will check whether that hostname matches with the hostname inside the certificate.  If those don’t match, an “invalid certificate” warning will appear …
 
 ### Key file
 The path to the key file where the private key is being stored. 
@@ -161,42 +181,3 @@ Your unique ECDSA (or RSA) subscriber account key in JWK format, that will be us
 
 ### Account
 Your unique subscriber account information.
-
-## Certificate renewal flow in detail
-
-![Detail flow](https://user-images.githubusercontent.com/14224149/79505401-9bdf9f80-8034-11ea-8e24-9567254fb8ba.png)
-
-0.	At startup Node-RED will read the key pair (both private key and public key), based on the file paths specified in the settings.js file:
-   ```
-   https: {
-        key: fs.readFileSync('privkey.pem'),
-        cert: fs.readFileSync('cert.pem')
-   },
-   ```
-   
-   Node-RED will start an ExpressJs webserver, which allows you to access the flow editor and the dashboard.  The keypair will be passed to that webserver to allow it to encrypt the data via SSL connections. 
-1.	As soon as an input message arrives, the certificate request flow will be started.
-2.	The private key will be read from the specified “key file” path.  A new key file (and a new private key) is generated, when the there is no file available.  Via the “Always create new key file (with new private key)” a new file (and a new private key) will always be generated, and the original key file will be overwritten!
-Remark: in some circumstances you could specify another key file, which is not used by Node-RED core itself.
-3.	Create a CSR (certificate signing request), which is required to request a new certificate.  In fact this is a request to have a public key officially signed, in this case by the Letsencrypt organisation.
-4.	Optionally (when the “Start webserver on port xxx” checkbox is activated) a temporary webserver will be started, that listens for http requests at port xxx.   
-
-   :warning: CAUTION: most of the time, Node-RED will not be running as root user (i.e. not started with sudo on Linux) to avoid Node-RED having too much permissions.  But as a result, Node-RED will have not enough permissions to start a webserver listening at port 80 (since port numbers 0 to 1023 are preserved).  So will need to specify a port number xxx between 1024 and 65535 in the config screen.
-
-   This is not required when you have your own webserver running (as root user), which listening already to port 80.  In that case you can just specify a web folder that your web server can access:
-
-   ![existing webserver](https://user-images.githubusercontent.com/14224149/79505569-da755a00-8034-11ea-869d-5e57c0e479e8.png)
- 
-5.	:warning: Optional step in case you have started a temporary webserver in the previous step.  Since we cannot start a webserver on port 80 (as non-root user), unfortunately you will manually have to setup port redirection:  all http requests that arrive on port 80 need to be redirected to port xxxx, which you have specified in the config screen.  On Linux for example, some commands need to be entered as root user (sudo …).
-6.	Send the CSR to Acme.js
-7.	Acme.js will send the CSR to Letsencrypt.  Remark: all communication is using the Acme protocol.
-8.	Letsencrypt will generate a key authentication file for validation, and send it to Acme.js.  Remark: the filename is a random token.
-9.	Acme.js will upload the file into the web folder, that has been specified in the config screen.  So now the webserver has access to the file.
-10.	Acme.js will let Letsencrypt know that the file has been uploaded.
-11.	Letsencrypt will validate the certificate request, by executing all challenges.  Minimally there will be a HTTP-01 challenge, which tries to read the key validation file from your webserver
-12.	The HTTP-01 challenge will send following http request:
-http://<YOUR_DOMAIN>/.well-known/acme-challenge/<TOKEN>
-Remark: This explains why it is so important to listen to port 80.  Indeed Letsencrypt will send the request to port 80, because only root users can setup listeners for that preserved port.  This way Letsencrypt can be sure that they are talking to the person that is responsible for that domain.  Moreover there are some other limitations, like e.g. no redirections to ports other than 80 are allowed …  This way Letsencrypt knows for sure that they are talking to the administrator that controls the domain.  Nobody else can interfere in this secure mechanism, even if they run a containerized environment on the same machine…
-13.	The webserver will return the key validation file, which is available (temporarily) in the web folder.  As soon as Letsencrypt receives his own file, they know that you are the owner of the domain.
-14.	The temporary key authentication file will be removed from the web folder.  And when a temporary webserver has been started, it will be stopped now.
-15.	The renewed certificate will be stored in the specified cert file.  And when a new private key has been created, it will be stored in the specified key file.  This way the entire keypair is updated.
