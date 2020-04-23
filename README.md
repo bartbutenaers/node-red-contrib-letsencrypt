@@ -60,6 +60,10 @@ CAUTION: when your Node-RED system is public accessible from the internet (e.g. 
 
 ## Node usage
 
+Make sure the properties of all 3 sections on the config screen have been supplied:
+
+![config screen](https://user-images.githubusercontent.com/14224149/80087211-18a1da80-855b-11ea-97d6-9aa26a04b55a.png)
+
 The following steps explain how to create a ***new subscriber account***:
 
 1.	Specify both a subscriber and maintainer email address.
