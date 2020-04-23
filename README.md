@@ -60,6 +60,16 @@ CAUTION: when your Node-RED system is public accessible from the internet (e.g. 
 
 ## Node usage
 
+The following basic flow renews the LetsEncrypt certificate, when a message is injected manually:
+
+![Basic flow](https://user-images.githubusercontent.com/14224149/80087879-07a59900-855c-11ea-848b-42c3067a09c0.png)
+
+```
+[{"id":"92f9265b.fc36d8","type":"acme-client","z":"11289790.c89848","name":"Request LetsEncrypt certificate","authority":"letsencrypt","dnsProvider":"duckdns","dnsToken":"999999999999999999999999999","dnsUserName":"","dnsEmail":"","dnsApiUser":"","dnsKeyId":"","dnsKey":"","dnsSecret":"","domains":"[\"mydomain.duckdns.org\"]","domainsType":"json","certFilePath":"/home/pi/.node-red/cert.pem","keyFilePath":"/home/pi/.node-red/privkey.pem","createNewKey":false,"maintainerEmail":"some.maintainer@someaddress.com","subscriberEmail":"some.subscriber@someaddress.com","useTestUrl":false,"x":670,"y":440,"wires":[["d09e255e.fce988"],["96cdd55f.8533f8"]]},{"id":"d09e255e.fce988","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":990,"y":440,"wires":[]},{"id":"96cdd55f.8533f8","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":990,"y":500,"wires":[]},{"id":"4429cb4d.697a14","type":"inject","z":"11289790.c89848","name":"Renew certificate","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":false,"onceDelay":0.1,"x":420,"y":440,"wires":[["92f9265b.fc36d8"]]}]
+```
+
+Of course it makes more sense to replace the Inject-node, by another node that sends a message once every few months (since a LetsEncrypt certificate expires after 3 months).  ***TODO*** example flow...
+
 Make sure the properties of all 3 sections on the config screen have been supplied:
 
 ![config screen](https://user-images.githubusercontent.com/14224149/80087211-18a1da80-855b-11ea-97d6-9aa26a04b55a.png)
