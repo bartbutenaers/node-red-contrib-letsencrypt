@@ -60,7 +60,7 @@ CAUTION: when your Node-RED system is public accessible from the internet (e.g. 
 
 ## Node usage
 
-The following basic flow renews the LetsEncrypt certificate, when a message is injected manually:
+The following basic flow renews the LetsEncrypt certificate (on a Raspberry Pi), when a message is injected manually:
 
 ![Basic flow](https://user-images.githubusercontent.com/14224149/80087879-07a59900-855c-11ea-848b-42c3067a09c0.png)
 
@@ -76,7 +76,7 @@ Make sure the properties of all 3 sections on the config screen have been suppli
 
 The following steps explain how to create a ***new subscriber account***:
 
-1.	Specify both a subscriber and maintainer email address.
+1.	Make sure the email address has been specified.
 2.	Wait until the dialog is displayed, which informs you whether the account has been created successfully…
 3.	Close the config screen and deploy your changes.
 4.	Your new account is now ready to be used…
@@ -87,23 +87,12 @@ The following steps explain shortly how to generate a ***new certificate***:
 1.	Specify the domains, which is an array of at least one public hostname.
 2.	Specify the key file where the private key is stored.
 3.	Specify the cert file where the public key (= certificate) is stored.
-4.	Specify a web folder where (temporary) files can be exchanged with Letsencrypt.
-5.	Make sure a webserver is available that can host the files in that web folder, which means make that folder accessible via http on port 80.  
-6.	:warning: In case a temporary webserver has been used (with port number >= 1024), it is required to setup manually port redirection (from port 80 to the webserver port)!  E.g. using iptables on Linux …
-7.	Inject a input message into this node, to trigger the certificate renewal.  
+4.	Inject a input message into this node, to trigger the certificate renewal.  
 
 The above steps should be executed only once, about ***every 3 months***.
 
 Indeed the Letsencrypt certificates are only valid for 90 days, so you should renew them in time (e.g. using a scheduler node).   Make sure you don’t trigger the certificate renewal process too often, because Letsencrypt has [rate limits]( https://letsencrypt.org/docs/rate-limits/).  For example you can only request 5 times a week duplicate certificates!
 Further on this page you can find a process flow diagram, where all the steps are explained in more detail.
-
-Example flow which will renew the Node-RED keypair on a Raspberry PI:
-
-![Basic flow](https://user-images.githubusercontent.com/14224149/79503297-35a54d80-8031-11ea-8c6b-fa0cf68a6e2c.png)
-
-```
-[{"id":"bafa5027.404f6","type":"acme-client","z":"52532cb5.768c44","name":"","domains":"[\"homespy.duckdns.org\"]","domainsType":"json","http01challenge":true,"dns01challenge":false,"webroot":"/var/tmp/acme-challenge","certFilePath":"/home/pi/.node-red/cert.pem","keyFilePath":"/home/pi/.node-red/privkey.pem","createNewKey":true,"maintainerEmail":"bart.butenaers@telenet.be","subscriberEmail":"bart.butenaers@telenet.be","startWebServer":true,"portNumber":"1088","x":670,"y":700,"wires":[["9e67ce94.43ab1"],["85266ea4.5460f"]]},{"id":"37075bc7.548104","type":"inject","z":"52532cb5.768c44","name":"","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":false,"onceDelay":0.1,"x":480,"y":700,"wires":[["bafa5027.404f6"]]},{"id":"9e67ce94.43ab1","type":"debug","z":"52532cb5.768c44","name":"Success","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":880,"y":680,"wires":[]},{"id":"85266ea4.5460f","type":"debug","z":"52532cb5.768c44","name":"Failure","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":870,"y":720,"wires":[]}]
-```
 
 When the certificate renewal has been successful, you can see the new certificate arriving in your browser (e.g. when opening the Node-RED flow editor or dashboard):
 
@@ -133,19 +122,6 @@ There are some limitations:
 +	It is not possible to specify IP addresses instead of hostnames.
 
 Make sure you specify the same hostnames as you use in your browsers address bar!  Because the browser will check whether that hostname matches with the hostname inside the certificate.  If those don’t match, an “invalid certificate” warning will appear …
-
-### Use the HTTP-01 challenge for domain validation
-The minimum required challenge, that allows LetsEncrypt to validate whether you control the domain.  Letsencrypt will access your domain (on port 80) and check whether you really control that domain (see token exchange in the process flow at the end of this page).
-
-### Use the DNS-01 challenge for domain validation
-This is only required in some circumstances, e.g. when wildcards are being used in the domain names.
-
-:warning: ***CAUTION:*** I have not tested this feature yet…
-
-### Web folder
-Specify the directory where the (temporary) authorization key file will need to be stored, that we receive from Letsencrypt (e.g. /var/tmp/acme-challenge). Make sure that Letsencrypt can access this authorization key file (in the specified folder) via a webserver listening to port 80!
-
-When an existing third-party webserver is already listening to port 80, you need to specify a directory that this webserver can access.
 
 ### Key file
 The path to the key file where the private key is being stored. 
@@ -185,11 +161,6 @@ Your unique ECDSA (or RSA) subscriber account key in JWK format, that will be us
 
 ### Account
 Your unique subscriber account information.
-
-### Start webserver on port
-To allow Letsencrypt to access the authorization key file, a webserver should listen to port 80 and host that file.  Two options exist:
-+	You have already running an existing webserver, which is listening to port 80 (which is possible when this webserver has been started via administrator privileges).  In that case you don’t need to start a second temporary webserver!
-+	:warning: However when no existing webserver is running, you can ask this node to start temporarily a minimal webserver to host the file.   But since Node-RED most probably isn't running as administrator (i.e. root), this temporary webserver is not allowed to listen to the (preserved) port 80. As a result: ***you need to redirect all traffic from port 80 to the specified port number (> 1024) yourself (e.g. via iptables on Linux).***
 
 ## Certificate renewal flow in detail
 
