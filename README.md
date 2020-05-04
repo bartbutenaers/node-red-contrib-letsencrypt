@@ -169,7 +169,7 @@ The following example flow renews the LetsEncrypt certificate (on a Raspberry Pi
 ![Basic flow](https://user-images.githubusercontent.com/14224149/80087879-07a59900-855c-11ea-848b-42c3067a09c0.png)
 
 ```
-[{"id":"92f9265b.fc36d8","type":"acme-client","z":"11289790.c89848","name":"Request LetsEncrypt certificate","authority":"letsencrypt","dnsProvider":"duckdns","dnsToken":"999999999999999999999999999","dnsUserName":"","dnsEmail":"","dnsApiUser":"","dnsKeyId":"","dnsKey":"","dnsSecret":"","domains":"[\"mydomain.duckdns.org\"]","domainsType":"json","certFilePath":"/home/pi/.node-red/cert.pem","keyFilePath":"/home/pi/.node-red/privkey.pem","createNewKey":false,"maintainerEmail":"some.maintainer@someaddress.com","subscriberEmail":"some.subscriber@someaddress.com","useTestUrl":false,"x":670,"y":440,"wires":[["d09e255e.fce988"],["96cdd55f.8533f8"]]},{"id":"d09e255e.fce988","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":990,"y":440,"wires":[]},{"id":"96cdd55f.8533f8","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":990,"y":500,"wires":[]},{"id":"4429cb4d.697a14","type":"inject","z":"11289790.c89848","name":"Renew certificate","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":false,"onceDelay":0.1,"x":420,"y":440,"wires":[["92f9265b.fc36d8"]]}]
+[{"id":"a3951789.6ef888","type":"acme-client","z":"11289790.c89848","name":"Request LetsEncrypt certificate","authority":"letsencrypt","dnsProvider":"duckdns","dnsToken":"<your_dns_token>","dnsUserName":"","dnsEmail":"","dnsApiUser":"","dnsKeyId":"","dnsKey":"","dnsSecret":"","domains":"[\"<your_sub_domain>.duckdns.org\"]","domainsType":"json","certFilePath":"/home/pi/.node-red/cert.pem","keyFilePath":"/home/pi/.node-red/privkey.pem","pemFiles":"existingOrNew","maintainerEmail":"your_name@telenet.be","subscriberEmail":"your_name@telenet.be","useTestUrl":false,"x":830,"y":1000,"wires":[["78778c6f.94e6e4"],["c1e1ac34.44d2c"]]},{"id":"78778c6f.94e6e4","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":1150,"y":1000,"wires":[]},{"id":"c1e1ac34.44d2c","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":1150,"y":1060,"wires":[]},{"id":"a23ed437.af1248","type":"inject","z":"11289790.c89848","name":"Start","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":false,"onceDelay":0.1,"x":590,"y":1000,"wires":[["a3951789.6ef888"]]}]
 ```
 
 Of course it makes more sense to replace the Inject-node, by another node that sends a message once every few months (since a LetsEncrypt certificate expires after 3 months).  ***TODO*** example flow...
@@ -218,15 +218,14 @@ In most cases this will be the path to the Node-RED key file (e.g. /home/pi/.nod
 The path to the cert file where the public key (i.e. certificate) is being stored. 
 In most cases this will be the path to the Node-RED cert file (e.g. /home/pi/.node-red/cert.pem), since we will want to renew the certificate that is being used for both the Node-RED flow editor and the dashboard.
 
-### Always create new key file (with new private key)
-This option determines what to do with the specified private key file:
-+	If selected, a new key file will be created (at the specified file path) and the old one will be removed. Moreover a new private key will be created, and stored into the key file. 
-
-    ***Caution:*** your existing privte key will get lost!!
+### Private key
+This option determines how to deal with the private key (in the specified <key>.pem file):
++ *Use existing private key:* Always use the existing private key, and fail (with error) if the private key doesn't exist.
++ *Use or create private key:* Use the existing private key if available, or create a new private key if it doesn't exist yet.
++ *Always create private key:* Always create a new private key, even if an existing private key is available.! 
    
-+	If unselected, the node will try to get an existing private key from the specified key file). When available, that private key will be used. If nothing found, a new private key will be generated.
-
-***CAUTION:*** both files should always be in sync!  To have a valid keypair, both the private key and its corresponding public key should be stored both.
+***CAUTION:*** in the latter case, the existing private key will be overwritten (in the specified key file)!
+The public key (certificate) on the other hand will *always* be overwritten (in the specified cert file), to keep both pem files in sync (i.e. the keypair should always be complete).
 
 ### Maintainer
 The maintainer email address is used by Root (i.e. Acme.js team) to notify you of security notices and bugfixes to ACME.js. This has to be a valid email address, since Root will check whether it exists!
