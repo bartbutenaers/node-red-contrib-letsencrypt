@@ -30,7 +30,7 @@
             domainsType: {value: "json"},
             certFilePath: {value: "", required: true},
             keyFilePath: {value: "", required: true},
-            createNewKey: {value: false},
+            privateKey: {value: "existingOrNew"},
             maintainerEmail: {value: "", required:true},
             subscriberEmail : {value: "", required:true},
             useTestUrl: {value: false}
@@ -50,7 +50,7 @@
         outputLabels: ["success", "failed"],
         oneditprepare: function() {
             var node = this;
-            
+           
             // Unfortunately we cannot simply get the path to the Node-RED cert and key files from RED.settings.
             // Because the settings.js files contains Javascript code to read the content of both files.  E.g. :
             //      https: {
@@ -65,7 +65,7 @@
                 types: ['json']
             });
             
-            $("#node-input-generateKeyPair").click(function () {
+            $("#node-input-generateAccount").click(function () {
                 var dialogHtml;
 
                 var subscriberEmail = $("#node-input-subscriberEmail").val();
@@ -236,9 +236,12 @@
             <input type="text" id="node-input-certFilePath" placeholder="Full file path (cert.pem)">
         </div>
         <div class="form-row">
-            <label>&nbsp;</label>
-            <input type="checkbox" id="node-input-createNewKey" style="display: inline-block; width: auto; vertical-align: top;">
-            <label for="node-input-createNewKey" style="width:70%;"> Always create new key file (with new private key)</label>
+            <label for="node-input-privateKey"><i class="fa fa-key"></i> Private key</label>
+            <select id="node-input-privateKey">
+                <option value="existing">Use existing private key</option>
+                <option value="existingOrNew">Use or create private key</option>
+                <option value="new">Always create private key</option>
+            </select>
         </div>
         <br>
         <div class="form-row">
@@ -309,7 +312,7 @@
         <br>
         <div class="form-row">
             <label>&nbsp;</label>
-            <button id="node-input-generateKeyPair"><i class="fa fa-floppy-o "></i> Create Acme subscriber account</button>
+            <button id="node-input-generateAccount"><i class="fa fa-floppy-o "></i> Create Acme subscriber account</button>
         </div>
         <div class="form-row">
             <label for="node-input-acmeAccountKey"><i class="fa fa-key"></i> Account key</label>
@@ -332,12 +335,14 @@
     The path to the key file where the private key is being stored.  In most cases this will be the path to the Node-RED key file (e.g. <code>/home/pi/.node-red/privkey.pem</code>).</p>
     <p><strong>Cert file:</strong><br/>
     The path to the cert file where the public key (i.e. certificate) is being stored.  In most cases this will be the path to the Node-RED cert file (e.g. <code>/home/pi/.node-red/cert.pem</code>).</p>
-    <p><strong>Always create new key file (with new private key):</strong><br/>
-    This option determines what to do with the specified private key file:
+    <p><strong>Private key:</strong><br/>
+    This option determines how to deal with the private key (in the specified key.pem file):
     <ul>
-        <li>If selected, a new key file will be created (at the specified file path) and the old one will be removed.  Moreover a new private key will be created, and stored into the key file.  <strong><i>Caution: your existing privte key will get lost!!</i></strong></li>
-        <li>If unselected, the node will try to get an existing private key from the specified key file).  When available, that private key will be used. If nothing found, a new private key will be generated.</li>
-    </ul></p>
+        <li><i>Use existing private key:</i> Always use the existing private key, and fail (with error) if the private key doesn't exist.</li>
+        <li><i>Use or create private key:</i> Use the existing private key if available, or create a new private key if it doesn't exist yet.</li>
+        <li><i>Always create private key:</i> Always create a new private key, even if an existing private key is available.! CAUTION: the existing private key will be overwritten!</li>
+    </ul>
+    </p>
     <p><strong>Maintainer:</strong><br/>
     The maintainer email address is used by Root (i.e. Acme.js team) to notify you of security notices and bugfixes to ACME.js.  This has to be a valid email address!</p>
     <p><strong>Provider:</strong><br/>
