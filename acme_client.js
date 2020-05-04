@@ -24,7 +24,7 @@ module.exports = function(RED) {
     const PEM = require('@root/pem');
     const pkg = require('./package.json');
     const fs = require('fs');
-   
+  
     function AcmeClientNode(config) {
         RED.nodes.createNode(this, config);
         this.authority       = config.authority; // Currently not used since we only support LetsEncrypt
@@ -33,7 +33,7 @@ module.exports = function(RED) {
         this.subscriberEmail = config.subscriberEmail;
         this.certFilePath    = config.certFilePath;
         this.keyFilePath     = config.keyFilePath;
-        this.createNewKey    = config.createNewKey;
+        this.privateKey      = config.privateKey;
         this.dnsToken        = config.dnsToken;
         this.dnsApiUser      = config.dnsApiUser;
         this.dnsUserName     = config.dnsUserName;
@@ -55,16 +55,6 @@ module.exports = function(RED) {
             node.domains = null;
         }
 
-        if (!node.certFilePath || !fs.existsSync(node.certFilePath)) {
-            node.certFilePath = null;
-            console.log("The specified certificate file does not exist.");
-        }
-       
-        if (!node.keyFilePath || !fs.existsSync(node.keyFilePath)) {
-            node.keyFilePath = null;
-            console.log("The specified key file does not exist.");
-        }
-       
         // The ACME spec requires clients to have RFC 7231 style User Agent, which can be contstructed based on the package name.
         var packageAgent = 'test-' + pkg.name + '/' + pkg.version;
        
@@ -141,6 +131,7 @@ module.exports = function(RED) {
 
         async function getServerKey(node) {
             var serverKey;
+            var serverPem;
            
             // The msg.payload will contain the path to the keystores
             // TODO or get the path from RED.settings
@@ -150,21 +141,31 @@ module.exports = function(RED) {
             // Try to load an existing key pair from the specified key file.
             // This is the key used by the Node-RED webserver (typically named `privkey.pem`, `key.crt`, or `bundle.pem`).
             // TODO dit faalt als de file niet bestaat !!!!!!!!!!
-           
-            // Read the existing key file only when requested
-            if (!node.createNewKey) {
-                var serverPem  = fs.readFileSync(node.keyFilePath, 'ascii');
-               
-                if (serverPem) {
-                    serverKey  = await Keypairs.import({ pem: serverPem });
+            
+            if (!fs.existsSync(node.keyFilePath)) {
+                if (node.privateKey === "existing") {
+                    throw "The specified key file does not exist";
                 }
             }
-           
+            else {
+                // Read the key pem file, unless we always need to create a new key
+                if(node.privateKey !== "new") {
+                    serverPem  = fs.readFileSync(node.keyFilePath, 'ascii');
+                }
+            }
+            
+            if (serverPem) {
+                // Import the private key from the key pem file
+                serverKey  = await Keypairs.import({ pem: serverPem });
+            }
+            
             if (!serverKey) {
-                // When no server key pair is available, let's generate a new one ...
-                var serverKeypair = await Keypairs.generate({ kty: 'RSA', format: 'jwk' });
-                serverKey = serverKeypair.private;
-                node.newServerKeyCreated = true;
+                // Create a new key pair, unless we always need to use existing pem files
+                if (node.privateKey !== "existing") {
+                    var serverKeypair = await Keypairs.generate({ kty: 'RSA', format: 'jwk' });
+                    serverKey = serverKeypair.private;
+                    node.newServerKeyCreated = true;
+                }
             }
            
             return serverKey;
@@ -339,6 +340,11 @@ module.exports = function(RED) {
                 console.log("Wait until the ACME client has been initialized, before sending a CSR to Letsencrypt.");
                 return;                
             }
+            
+            if (node.privateKey === "existing" && !fs.existsSync(node.certFilePath)) {
+                console.log("The specified certificate file does not exist.");
+                return;
+            }
            
             // TODO this takes very long to display ...  Is that caused perhaps somehow by the 'await' statements??
             node.status({fill:"blue", shape:"ring", text:"requesting..."});
@@ -386,13 +392,13 @@ module.exports = function(RED) {
             }
            
             // When we arrive here, we have received a new certificate from LetsEncrypt...
-            // Save the new certificate (and the entire certificate chain) into the specified key file
+            // We allways need to save the new certificate (and the entire certificate chain) into the specified key file.
             var fullchain = pems.cert + '\n' + pems.chain + '\n';
             fs.writeFileSync(node.certFilePath, fullchain, {encoding: 'ascii'});
             node.log("Acme client has stored the new certificate into " + node.certFilePath);
            
             if (node.newServerKeyCreated) {
-                // When a new server key has been created, we will store it into the specified key file.
+                // Only when a NEW server key has been created, we will store it into the specified key file.
                 // That way Node-RED has the entire keypair, i.e. the private key and the corresponding public key (= certificate).
                 // Remark: we do this not in the getServerKey function, because the certificate renewal might fail.
                 //         In that case Node-RED would not start anymore, because it would have a new private key and no corresponding new certificate...
