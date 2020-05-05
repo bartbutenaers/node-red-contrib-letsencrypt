@@ -24,6 +24,8 @@ module.exports = function(RED) {
     const PEM = require('@root/pem');
     const pkg = require('./package.json');
     const fs = require('fs');
+    const bcryptjs = require('bcryptjs');
+    const passwordStrength = require('check-password-strength');
   
     function AcmeClientNode(config) {
         RED.nodes.createNode(this, config);
@@ -450,6 +452,25 @@ module.exports = function(RED) {
                     console.log("Error while creating acme account: " + err);
                     // this will eventually be handled by your error handling middleware
                     res.status(500).json({error: 'Error creating acme account'});
+                }
+                break;
+            case "create_password_hash":
+                try {
+                    // The password is passed as a query parameter
+                    var password = req.query.password;
+                    
+                    // Create a password hash the same way as Node-RED does it.
+                    var passwordHash = bcryptjs.hashSync(password, 8);
+                    
+                    // Calculate the password strength also
+                    var strength = passwordStrength(password).value;
+                    
+                    res.json({hash: passwordHash, strength: strength});
+                }
+                catch (err) {
+                    console.log("Error while creating password hash: " + err);
+                    // this will eventually be handled by your error handling middleware
+                    res.status(500).json({error: 'Error creating password hash'});
                 }
                 break;
             default:
