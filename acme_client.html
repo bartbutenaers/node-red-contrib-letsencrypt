@@ -65,6 +65,36 @@
                 types: ['json']
             });
             
+            $("#node-input-password").change(function() {
+                // When the password has been changed, reset to the default border color
+                $("#node-input-password").css('background-color', 'rgb(249, 249, 249');
+            });
+            
+            $("#node-input-generatePasswordHash").click(function () {
+                var password = $("#node-input-password").val();
+                
+                // Remark: the bcrypt algorithm can return different hashes for the same password!
+                $.getJSON('acme-client/create_password_hash/' + node.id, {password: password}, function(jsonData) {
+                    $("#node-input-passwordHash").val(jsonData.hash);
+                    
+                    var passwordStrength = jsonData.strength;
+
+                    // The border color of the password field should match the password strength
+                    switch (passwordStrength) {
+                        case "Weak":
+                            $("#node-input-password").css('background-color', 'tomato');
+                            break;
+                        case "Medium":
+                            $("#node-input-password").css('background-color', 'orange');
+                            break;
+                        case "Strong":
+                            $("#node-input-password").css('background-color', 'palegreen');
+                    }                    
+                }).error(function() {
+                    RED.notify("Cannot create hash", "error");
+                }) 
+            });
+            
             $("#node-input-generateAccount").click(function () {
                 var dialogHtml;
 
@@ -220,6 +250,13 @@
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
+    <div class="form-row">
+        <label for="node-input-password"><i class="fa fa-eye-slash"></i> Password</label>
+        <input type="text" id="node-input-password" placeholder="Password" >
+        <button id="node-input-generatePasswordHash"><i class="fa fa-arrow-right"></i></button>
+        <label for="node-input-passwordHash"><i class="fa fa-file"></i> Hash</label>
+        <input type="text" id="node-input-passwordHash" placeholder="Password hash" disabled>
+    </div>
     <fieldset>
         <legend>Https</legend>
         <div class="form-row">
@@ -306,7 +343,7 @@
             </select>
         </div>
         <div class="form-row">
-            <label for="node-input-subscriberEmail "><i class="fa fa-envelope-o"></i> Subscriber</label>
+            <label for="node-input-subscriberEmail"><i class="fa fa-envelope-o"></i> Subscriber</label>
             <input type="email" id="node-input-subscriberEmail" placeholder="Enter email address">
         </div>
         <br>
@@ -326,6 +363,9 @@
 </script>
 <script type="text/html" data-help-name="acme-client">
     <p>A Node Red node to provide an ACME client to connect to Let’s Encrypt (based on the DNS01 challenge).</p>
+    </p>
+    <p><strong>Password:</strong><br/>
+    Enter a password here and press the 'arrow' button, then the corresponding password hash will be displayed.  The password and the hash won't be stored!</p>
     <p><strong>Domains:</strong><br/>
     Provide an array of at least 1 domain name, i.e. the hostname(s) that need to be included into the certificate.  Which means you have to specify the same hostnames (optionally containing wildcards), to which you navigate in your browser's address bar.  
     Caution: Let’s Encrypt doesn’t issue certificates for bare IP addresses, only domain names!
