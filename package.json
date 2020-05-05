@@ -18,7 +18,9 @@
         "acme-dns-01-namedotcom": "~3.0.1",
         "acme-dns-01-route53": "~0.0.1",
         "acme-dns-01-vultr": "~3.0.2",
-        "acme-dns-01-zeit": "~3.0.3"
+        "acme-dns-01-zeit": "~3.0.3",
+        "bcryptjs": "~2.4.3",
+        "check-password-strength": "~1.0.8"
     },
     "author": {
         "name": "Bart Butenaers"
