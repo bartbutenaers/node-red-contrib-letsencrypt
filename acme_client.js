@@ -22,6 +22,7 @@ module.exports = function(RED) {
     const CSR = require('@root/csr');
     const punycode = require('punycode');
     const PEM = require('@root/pem');
+    const certinfo = require('cert-info');
     const pkg = require('./package.json');
     const fs = require('fs');
     const bcryptjs = require('bcryptjs');
@@ -317,101 +318,126 @@ module.exports = function(RED) {
        
         node.on("input", async function(msg) {
             var serverKey, csr, pems, webServer;
-           
-            if (this.acmeBusy) {
-                console.log("The node is still busy with a previous certificate request.");
-                return;
-            }
-           
-            if (!node.domains) {
-                console.log("A domain list should be specified, in order to send a CSR to Letsencrypt.");
-                return;
-            }
-           
-            if (!node.keyFilePath) {
-                console.log("A key file should be specified, in order to send a CSR to Letsencrypt.");
-                return;
-            }
-           
-            if (!node.certFilePath) {
-                console.log("A certificate file should be specified, in order to send a CSR to Letsencrypt.");
-                return;
-            }
-           
-            if (!node.acmeInitialized) {
-                console.log("Wait until the ACME client has been initialized, before sending a CSR to Letsencrypt.");
-                return;                
-            }
             
-            if (node.privateKey === "existing" && !fs.existsSync(node.certFilePath)) {
-                console.log("The specified certificate file does not exist.");
-                return;
-            }
-           
-            // TODO this takes very long to display ...  Is that caused perhaps somehow by the 'await' statements??
-            node.status({fill:"blue", shape:"ring", text:"requesting..."});
-           
-            this.acmeBusy = true;
-            node.newServerKeyCreated = false;
-           
-            try {
-                // Create (or load) the Node-RED server Keypair
-                serverKey = await getServerKey(node);
-            }
-            catch (err) {
-                handleError(node, "GET_SERVER_KEY", err);
-                return;
-            }
+            switch (msg.payload) {
+                case "get_certificate_info":
+                    if (fs.existsSync(node.certFilePath)) {
+                        var certPem  = fs.readFileSync(node.certFilePath, 'ascii');
+                   
+                        try {
+                            var certInformation = certinfo.info(certPem);
+ 
+                            node.send([{payload: certInformation, topic: "get_certificate_info"}, null]);
+                        }
+                        catch (err) {
+                            handleError(node, "GET_CERT_INFO", err);
+                            return;
+                        }
+                    }
+                    else {
+                        handleError(node, "GET_CERT_INFO", "Specified cert file does not exist");
+                    }
+                
+                    break;
+                case "request_certificate":
+                    if (this.acmeBusy) {
+                        console.log("The node is still busy with a previous certificate request.");
+                        return;
+                    }
+                   
+                    if (!node.domains) {
+                        console.log("A domain list should be specified, in order to send a CSR to Letsencrypt.");
+                        return;
+                    }
+                   
+                    if (!node.keyFilePath) {
+                        console.log("A key file should be specified, in order to send a CSR to Letsencrypt.");
+                        return;
+                    }
+                   
+                    if (!node.certFilePath) {
+                        console.log("A certificate file should be specified, in order to send a CSR to Letsencrypt.");
+                        return;
+                    }
+                   
+                    if (!node.acmeInitialized) {
+                        console.log("Wait until the ACME client has been initialized, before sending a CSR to Letsencrypt.");
+                        return;                
+                    }
+                    
+                    if (node.privateKey === "existing" && !fs.existsSync(node.certFilePath)) {
+                        console.log("The specified certificate file does not exist.");
+                        return;
+                    }
+                   
+                    // TODO this takes very long to display ...  Is that caused perhaps somehow by the 'await' statements??
+                    node.status({fill:"blue", shape:"ring", text:"requesting..."});
+                   
+                    this.acmeBusy = true;
+                    node.newServerKeyCreated = false;
+                   
+                    try {
+                        // Create (or load) the Node-RED server Keypair
+                        serverKey = await getServerKey(node);
+                    }
+                    catch (err) {
+                        handleError(node, "GET_SERVER_KEY", err);
+                        return;
+                    }
 
-            // Make sure the array of domains is punycode-encoded
-            var encodedDomains = node.domains.map(function(name) {
-                return punycode.toASCII(name);
-            });
+                    // Make sure the array of domains is punycode-encoded
+                    var encodedDomains = node.domains.map(function(name) {
+                        return punycode.toASCII(name);
+                    });
 
-            try {
-                // Create a Certificate Sign Request (CSR)
-                csr = await createCSR(serverKey, encodedDomains);
-            }
-            catch (err) {
-                handleError(node, "CREATE_CSR", err);
-                return;
-            }
+                    try {
+                        // Create a Certificate Sign Request (CSR)
+                        csr = await createCSR(serverKey, encodedDomains);
+                    }
+                    catch (err) {
+                        handleError(node, "CREATE_CSR", err);
+                        return;
+                    }
 
-            try {
-                // Acme.js will do a lots of things here:
-                // - Do a dry run to ensure that the basic stuff is already ok.
-                // - Send our CSR to LetsEncrypt.
-                // - LetsEncrypt will return a key authorization file, which acme.js will store in our webroot directory.
-                // - Notifiy LetsEncrypt that the file is available via 'some' webserver (our express js listener above for example).
-                // - LetsEncrypt will call our webserver (during the http-01 challenge) to request the authorization file.  
-                //   This way Letsencrypt is sure that we 'control' (as root) the domains that we have specified...
-                // - Once LetsEncrypt has finished his checks, Acme.js will remove the key authorization file.
-                pems = await createSslCertificate(node, csr, encodedDomains);
+                    try {
+                        // Acme.js will do a lots of things here:
+                        // - Do a dry run to ensure that the basic stuff is already ok.
+                        // - Send our CSR to LetsEncrypt.
+                        // - LetsEncrypt will return a key authorization file, which acme.js will store in our webroot directory.
+                        // - Notifiy LetsEncrypt that the file is available via 'some' webserver (our express js listener above for example).
+                        // - LetsEncrypt will call our webserver (during the http-01 challenge) to request the authorization file.  
+                        //   This way Letsencrypt is sure that we 'control' (as root) the domains that we have specified...
+                        // - Once LetsEncrypt has finished his checks, Acme.js will remove the key authorization file.
+                        pems = await createSslCertificate(node, csr, encodedDomains);
+                    }
+                    catch (err) {
+                        handleError(node, "CREATE_CERTIFICATE", err);
+                        return;
+                    }
+                   
+                    // When we arrive here, we have received a new certificate from LetsEncrypt...
+                    // We allways need to save the new certificate (and the entire certificate chain) into the specified key file.
+                    var fullchain = pems.cert + '\n' + pems.chain + '\n';
+                    fs.writeFileSync(node.certFilePath, fullchain, {encoding: 'ascii'});
+                    node.log("Acme client has stored the new certificate into " + node.certFilePath);
+                   
+                    if (node.newServerKeyCreated) {
+                        // Only when a NEW server key has been created, we will store it into the specified key file.
+                        // That way Node-RED has the entire keypair, i.e. the private key and the corresponding public key (= certificate).
+                        // Remark: we do this not in the getServerKey function, because the certificate renewal might fail.
+                        //         In that case Node-RED would not start anymore, because it would have a new private key and no corresponding new certificate...
+                        serverPem = await Keypairs.export({ jwk: serverKey });
+                        fs.writeFileSync(node.keyFilePath, serverPem, 'ascii');
+                    }
+                   
+                    node.status({fill:"green", shape:"dot", text:"cert loaded"});
+                   
+                    this.acmeBusy = false;
+                    node.send([{payload: "success"}, null]);
+                    break;
+                default:
+                    node.error("The msg.payload contains a unsupported command");
             }
-            catch (err) {
-                handleError(node, "CREATE_CERTIFICATE", err);
-                return;
-            }
-           
-            // When we arrive here, we have received a new certificate from LetsEncrypt...
-            // We allways need to save the new certificate (and the entire certificate chain) into the specified key file.
-            var fullchain = pems.cert + '\n' + pems.chain + '\n';
-            fs.writeFileSync(node.certFilePath, fullchain, {encoding: 'ascii'});
-            node.log("Acme client has stored the new certificate into " + node.certFilePath);
-           
-            if (node.newServerKeyCreated) {
-                // Only when a NEW server key has been created, we will store it into the specified key file.
-                // That way Node-RED has the entire keypair, i.e. the private key and the corresponding public key (= certificate).
-                // Remark: we do this not in the getServerKey function, because the certificate renewal might fail.
-                //         In that case Node-RED would not start anymore, because it would have a new private key and no corresponding new certificate...
-                serverPem = await Keypairs.export({ jwk: serverKey });
-                fs.writeFileSync(node.keyFilePath, serverPem, 'ascii');
-            }
-           
-            node.status({fill:"green", shape:"dot", text:"cert loaded"});
-           
-            this.acmeBusy = false;
-            node.send([{payload: "success"}, null]);
         });        
        
         node.on("close", function() {
