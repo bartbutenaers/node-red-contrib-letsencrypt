@@ -7,6 +7,7 @@
         "@root/keypairs": "~0.9.0",
         "@root/csr": "~0.8.1",
         "@root/pem": "~1.0.4",
+        "cert-info": "~1.5.1",
         "punycode": "~2.1.1",
         "acme-dns-01-cloudflare": "~1.1.1",
         "acme-dns-01-digitalocean": "~3.0.1",
