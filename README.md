@@ -24,7 +24,29 @@ This node helps users to secure their Node-RED communication, when a simple Node
 
 ### Basic authentication
 
-Basic authentication means that you should secure your Node-RED system at least with a ***username/password*** at login.  To do this you need to convert your password to a hash, and store your username and password in the Node-RED settings.js file.  [Here](https://nodered.org/docs/user-guide/runtime/securing-node-red#usernamepassword-based-authentication) you can find how to accomplish this.
+Basic authentication means that you should secure your Node-RED system at least with a ***username/password*** at login.  To do this you need to convert your password to a hash, and store your username and password in the Node-RED settings.js file.  Although this is not really related to Acme, this node will help you in accomplishing this:
+
+1. Choose a safe password and enter it in the password field of this node's config screen.  
+
+   ***CAUTION:*** The password and the hash won't be saved!  So the next time you open the screen, they will be gone (since you don't need them anymore in this node...). So make sure you remember it yourself!!!
+
+2. Hit the 'arrow' button and then the password hash will be calculated, and also the password strength (which will show a different color depending on Weak, Medium or Strong):
+
+   ![acme_password](https://user-images.githubusercontent.com/14224149/82138360-1ceeaa00-9820-11ea-8084-ce8b4b14207e.gif)
+
+   P.S. You can get different hash values when you generate the hash for the same password multiple times.  That is normal ...
+
+3. You need to copy manually this hash in your settings.js file:
+
+   ![acme_password_settings](https://user-images.githubusercontent.com/14224149/82138406-7f47aa80-9820-11ea-9e7c-7a1637461406.png)
+
+4. Restart Node-RED
+
+5. When navigating to Node-RED you will get a login screen.  Pass your username (e.g. *"admin"*) and your password (e.g. *"my_password"*):
+
+   ![acme_logon_screen](https://user-images.githubusercontent.com/14224149/82138407-7fe04100-9820-11ea-97bd-6f70e1d6d433.png)
+
+6. Normally you should now be granted access to your Node-RED editor...
 
 ### Secure SSL connection
 
