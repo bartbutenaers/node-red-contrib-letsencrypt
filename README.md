@@ -109,7 +109,7 @@ The next diagram shows how this node is being used as an ACME client:
 
 ![Summary diagram](https://user-images.githubusercontent.com/14224149/80138962-fd0ff180-85a5-11ea-826a-786d8714613c.png)
 
-1. The Inject node triggers (e.g. every 3 months) the acme client node, which will try to load the private key from the key (pem) file.  When no private key is found a new key pair is generated (i.e. both a private key and a corresponding public key).
+1. The Inject node triggers (e.g. every 3 months) the acme client node, by injecting an input message with ```msg.payload="request_certificate"```, which will try to load the private key from the key (pem) file.  When no private key is found a new key pair is generated (i.e. both a private key and a corresponding public key).
 
 2. The acme client node, which will try to load the public key from the cert file.
 
@@ -162,17 +162,33 @@ This node can be used for different kind of Node-RED system setups, as long as N
 2. Private accessible online Node-RED system: as long as there is also an outbound connection to the internet, a LetsEncrypt certificate can be requested. 
 2. Private accessible offline Node-RED system: when no outbound connection to the internet is available, ***NO*** LetsEncrypt certificate can be requested!
 
-### Basic flow
+### Flow certificate renewal
 
-The following example flow renews the LetsEncrypt certificate (on a Raspberry Pi), when a message is injected manually:
+The following example flow renews the LetsEncrypt certificate (on a Raspberry Pi), when a message with ```msg.payload="request_certificate"``` is injected manually:
 
-![Basic flow](https://user-images.githubusercontent.com/14224149/80087879-07a59900-855c-11ea-848b-42c3067a09c0.png)
+![Renewal flow](https://user-images.githubusercontent.com/14224149/80087879-07a59900-855c-11ea-848b-42c3067a09c0.png)
 
 ```
-[{"id":"a3951789.6ef888","type":"acme-client","z":"11289790.c89848","name":"Request LetsEncrypt certificate","authority":"letsencrypt","dnsProvider":"duckdns","dnsToken":"<your_dns_token>","dnsUserName":"","dnsEmail":"","dnsApiUser":"","dnsKeyId":"","dnsKey":"","dnsSecret":"","domains":"[\"<your_sub_domain>.duckdns.org\"]","domainsType":"json","certFilePath":"/home/pi/.node-red/cert.pem","keyFilePath":"/home/pi/.node-red/privkey.pem","pemFiles":"existingOrNew","maintainerEmail":"your_name@telenet.be","subscriberEmail":"your_name@telenet.be","useTestUrl":false,"x":830,"y":1000,"wires":[["78778c6f.94e6e4"],["c1e1ac34.44d2c"]]},{"id":"78778c6f.94e6e4","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":1150,"y":1000,"wires":[]},{"id":"c1e1ac34.44d2c","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":1150,"y":1060,"wires":[]},{"id":"a23ed437.af1248","type":"inject","z":"11289790.c89848","name":"Start","topic":"","payload":"","payloadType":"date","repeat":"","crontab":"","once":false,"onceDelay":0.1,"x":590,"y":1000,"wires":[["a3951789.6ef888"]]}]
+[{"id":"92f9265b.fc36d8","type":"acme-client","z":"11289790.c89848","name":"Request LetsEncrypt certificate","authority":"letsencrypt","dnsProvider":"duckdns","dnsToken":"your_duckdns_token","dnsUserName":"","dnsEmail":"","dnsApiUser":"","dnsKeyId":"","dnsKey":"","dnsSecret":"","domains":"[\"your_subdomain.duckdns.org\"]","domainsType":"json","certFilePath":"/home/pi/.node-red/cert.pem","keyFilePath":"/home/pi/.node-red/privkey.pem","maintainerEmail":"your_email_address","subscriberEmail":"your_email_address","useTestUrl":false,"x":670,"y":480,"wires":[["d09e255e.fce988"],["96cdd55f.8533f8"]]},{"id":"d09e255e.fce988","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":990,"y":480,"wires":[]},{"id":"96cdd55f.8533f8","type":"debug","z":"11289790.c89848","name":"LetsEncrypted updated","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":990,"y":540,"wires":[]},{"id":"4429cb4d.697a14","type":"inject","z":"11289790.c89848","name":"Renew certificate","topic":"","payload":"request_certificate","payloadType":"str","repeat":"","crontab":"","once":false,"onceDelay":0.1,"x":400,"y":480,"wires":[["92f9265b.fc36d8"]]}]
 ```
 
 Of course it makes more sense to replace the Inject-node, by another node that sends a message once every few months (since a LetsEncrypt certificate expires after 3 months).  ***TODO*** example flow...
+
+### Flow certificate information
+
+The following flow demonstrates how to get information about the current certificate (stored in the specified cert file path), when a message with ```msg.payload="get_certificate_info"``` is injected manually:
+
+![Information flow](https://user-images.githubusercontent.com/14224149/82138163-91284e00-981e-11ea-9dbe-a6aafd86b541.png)
+
+```
+[{"id":"70a6d890.f393b8","type":"inject","z":"11289790.c89848","name":"Get certificate info","topic":"","payload":"get_certificate_info","payloadType":"str","repeat":"","crontab":"","once":false,"onceDelay":0.1,"x":390,"y":480,"wires":[["92f9265b.fc36d8"]]},{"id":"92f9265b.fc36d8","type":"acme-client","z":"11289790.c89848","name":"Request LetsEncrypt certificate","authority":"letsencrypt","dnsProvider":"duckdns","dnsToken":"your_duckdns_token","dnsUserName":"","dnsEmail":"","dnsApiUser":"","dnsKeyId":"","dnsKey":"","dnsSecret":"","domains":"[\"your_subdomain.duckdns.org\"]","domainsType":"json","certFilePath":"/home/pi/.node-red/cert.pem","keyFilePath":"/home/pi/.node-red/privkey.pem","maintainerEmail":"your_email_address","subscriberEmail":"your_email_address","useTestUrl":false,"x":670,"y":480,"wires":[["d09e255e.fce988"],[]]},{"id":"d09e255e.fce988","type":"debug","z":"11289790.c89848","name":"Certificate info","active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"true","targetType":"full","x":960,"y":480,"wires":[]}]
+```
+
+The output message ```msg.payload``` contains information about the certificate:
+
+![Certificate information](https://user-images.githubusercontent.com/14224149/82138210-fc722000-981e-11ea-8e0c-9af4daae5a63.png)
+
+The ```msg.expiresAt``` field contains the timestamp of the expiration date, which might be used for example to trigger an alarm when a certificate is going to expire in N days from now.  Or you can use it to trigger the certificate renewal!
 
 ### Config screen in a nutshell
 
