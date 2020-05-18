@@ -319,6 +319,8 @@ module.exports = function(RED) {
         node.on("input", async function(msg) {
             var serverKey, csr, pems, webServer;
             
+            node.status({});
+            
             switch (msg.payload) {
                 case "get_certificate_info":
                     if (fs.existsSync(node.certFilePath)) {
@@ -326,6 +328,14 @@ module.exports = function(RED) {
                    
                         try {
                             var certInformation = certinfo.info(certPem);
+                            
+                            if (certInformation) {
+                                // Calculate in how many days the certificate will expire, and add the result to the information.
+                                // A negative result indicates that the certificate has already expired...
+                                var timeDifference = certInformation.expiresAt - Date.now();
+                                var daysDifference = Math.round(timeDifference / (24 * 60 * 60 * 1000)); 
+                                certInformation.expiresInDays = daysDifference;
+                            }
  
                             node.send([{payload: certInformation, topic: "get_certificate_info"}, null]);
                         }
