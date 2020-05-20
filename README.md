@@ -1,5 +1,5 @@
-# node-red-contrib-acme-client
-A Node-RED node which acts like an ACME client, to renew LetsEncrypt certificates.
+# node-red-contrib-letsencrypt
+A Node-RED node to request and renew LetsEncrypt certificates.
 
 :warning: ***This is an experimental version !!!!  This version is published on Github to be able to discuss it on the Discourse forum...*** 
 
@@ -7,7 +7,7 @@ A Node-RED node which acts like an ACME client, to renew LetsEncrypt certificate
 
 Run the following npm command in your Node-RED user directory (typically ~/.node-red):
 ```
-npm install bartbutenaers/node-red-contrib-acme-client
+npm install bartbutenaers/node-red-contrib-letsencrypt
 ```
 
 ## Support my Node-RED developments
@@ -299,6 +299,8 @@ The following DNS providers are currently supported by this node:
 + Vultr
 
 Depending on the selected DNS provider, the related authentication fields will be displayed...
+
+Remark: if your DNS provider is not in this list and you have some programming skills, then you might create your own provider plugin as described [here](https://git.rootprojects.org/root/acme-dns-01-test.js#user-content-the-easy-way-to-build-a-plugin).  Just make sure that your DNS provider supports TXT records via their API, otherwise it won't work anyway...
 
 ### Authority
 The name of the certification authority (CA) that will sign our certificates.  Currently only LetsEncrypt is supported.
