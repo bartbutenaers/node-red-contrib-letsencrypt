@@ -1,7 +1,7 @@
 {
-    "name": "node-red-contrib-acme-client",
+    "name": "node-red-contrib-letsencrypt",
     "version": "1.0.0",
-    "description": "A Node-RED node which acts like an ACME client, to connect to an Automated Certificate Management Environment (e.g. Letsencrypt)",
+    "description": "A Node-RED node to request and renew LetsEncrypt certificates.",
     "dependencies": {
         "acme-v2": "~3.0.3",
         "@root/keypairs": "~0.9.0",
@@ -36,12 +36,12 @@
         "letsencrypt"
     ],
     "bugs": {
-        "url": "https://github.com/bartbutenaers/node-red-contrib-acme-client/issues"
+        "url": "https://github.com/bartbutenaers/node-red-contrib-letsencrypt/issues"
     },
-    "homepage": "https://github.com/bartbutenaers/node-red-contrib-acme-client",
+    "homepage": "https://github.com/bartbutenaers/node-red-contrib-letsencrypt",
     "repository": {
         "type": "git",
-        "url": "https://github.com/bartbutenaers/node-red-contrib-acme-client.git"
+        "url": "https://github.com/bartbutenaers/node-red-contrib-letsencrypt.git"
     },
     "node-red": {
         "nodes": {
