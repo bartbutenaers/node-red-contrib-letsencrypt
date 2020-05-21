@@ -43,9 +43,9 @@
         outputs:2,
         icon: "font-awesome/fa-key",
         align: 'left',
-        paletteLabel: "Acme client",
+        paletteLabel: "Letsencrypt client",
         label: function() {
-            return this.name || "Acme client";
+            return this.name || "Letsencrypt client";
         },
         outputLabels: ["success", "failed"],
         oneditprepare: function() {
@@ -108,10 +108,10 @@
 
                 // The text in the confirmation dialog, depends on whether an account exists already
                 if ($("#node-input-acmeAccountKey").val() || $("#node-input-acmeAccount").val()) {
-                    dialogHtml = '<div><div style="margin: 20px;">In order to use LetsEncrypt and ACME.js, you must agree to the respective Subscriber <a href="https://acme-v01.api.letsencrypt.org/terms" target="_blank"> Agreement and Terms</a>!</div><div style="margin: 20px; font-weight: bold">CAUTION: The existing account information will be deleted!</div><div style="margin: 20px; font-weight: bold">CAUTION: Do not close the config screen until the account has been generated!</div></div>';
+                    dialogHtml = '<div><div style="margin: 20px;">Make sure you have deployed all your changes in the config screen of this node, because this configuration will be used to create an account!</div><div style="margin: 20px;">In order to use LetsEncrypt and ACME.js, you must agree to the respective Subscriber <a href="https://acme-v01.api.letsencrypt.org/terms" target="_blank"> Agreement and Terms</a>!</div><div style="margin: 20px; font-weight: bold">CAUTION: The existing account information will be deleted!</div><div style="margin: 20px; font-weight: bold">CAUTION: Do not close the config screen until the account has been generated!</div></div>';
                 }
                 else {
-                    dialogHtml = '<div><div style="margin: 20px;">In order to use LetsEncrypt and ACME.js, you must agree to the respective Subscriber <a href="https://acme-v01.api.letsencrypt.org/terms" target="_blank"> Agreement and Terms</a>!</div><div style="margin: 20px; font-weight: bold">CAUTION: Do not close the config screen until the account has been generated!</div></div>';
+                    dialogHtml = '<div><div style="margin: 20px;">Make sure you have deployed all your changes in the config screen of this node, because this configuration will be used to create an account!</div><div style="margin: 20px;">In order to use LetsEncrypt and ACME.js, you must agree to the respective Subscriber <a href="https://acme-v01.api.letsencrypt.org/terms" target="_blank"> Agreement and Terms</a>!</div><div style="margin: 20px; font-weight: bold">CAUTION: Do not close the config screen until the account has been generated!</div></div>';
                 }
                 
                 $('<div></div>').appendTo('body')
@@ -128,22 +128,7 @@
                             click: function () {
                                 // Ask the server side flow to generate a new key pair
                                 $.getJSON('acme-client/create_acme_account/' + node.id, function(jsonData) {
-                                    // Show feedback alert
-                                    $('<div></div>').appendTo('body')
-                                        .html('<div title="Acme account" style="margin: 20px;">The account (key pair) has been generated, and will become active after deploy!</div>')
-                                        .dialog({
-                                            modal: true,
-                                            title: 'Acme account created',
-                                            zIndex: 10000,
-                                            autoOpen: true,
-                                            width: 'auto',
-                                            resizable: false,
-                                            buttons: {
-                                                'Ok': function()  {
-                                                    $( this ).dialog( 'close' );
-                                                }
-                                            }
-                                        });
+                                    RED.notify("Cannot create account!  See Node-RED log for more details...", "success");
                                         
                                     var accountKeyAsString = JSON.stringify(jsonData.accountKey);
                                     var accountAsString = JSON.stringify(jsonData.account);
@@ -151,22 +136,7 @@
                                     $("#node-input-acmeAccountKey").val(accountKeyAsString);
                                     $("#node-input-acmeAccount").val(accountAsString);
                                 }).error(function() {
-                                    // Show error alert
-                                    $('<div></div>').appendTo('body')
-                                        .html('<div title="Acme account" style="margin: 20px;">Cannot create account!  See Node-RED log for more details...</div>')
-                                        .dialog({
-                                            modal: true,
-                                            title: 'Acme account failed',
-                                            zIndex: 10000,
-                                            autoOpen: true,
-                                            width: 'auto',
-                                            resizable: false,
-                                            buttons: {
-                                                'Ok': function()  {
-                                                    $( this ).dialog( 'close' );
-                                                }
-                                            }
-                                        });
+                                    RED.notify("Cannot create account!  See Node-RED log for more details...", "error");
                                 })  
 
                                 $(this).dialog("close");
