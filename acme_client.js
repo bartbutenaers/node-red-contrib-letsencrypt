@@ -468,16 +468,16 @@ module.exports = function(RED) {
    
     // Make the key pair generation available to the config screen (in the flow editor)
     RED.httpAdmin.get('/acme-client/:cmd/:id', RED.auth.needsPermission('acme-client.write'), async function(req, res){
-        var acmeClientNode = RED.nodes.getNode(req.params.id);
-       
-        if (!acmeClientNode) {
-            console.log("Cannot find Acme Client node with id = " + req.params.id);
-            res.status(404).json({error: 'Unknown Acme Client node'});
-            return;
-        }
-       
         switch (req.params.cmd) {
             case "create_acme_account":
+                var acmeClientNode = RED.nodes.getNode(req.params.id);
+       
+                if (!acmeClientNode) {
+                    console.log("Cannot find Acme Client node with id = " + req.params.id);
+                    res.status(404).json({error: 'Unknown Acme Client node'});
+                    return;
+                }
+        
                 try {
                     var acmeInformation = await acmeClientNode.createAcmeAccount(res);
                    
