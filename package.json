@@ -9,7 +9,7 @@
         "@root/pem": "~1.0.4",
         "cert-info": "~1.5.1",
         "punycode": "~2.1.1",
-        "acme-dns-01-cloudflare": "~1.1.1",
+        "acme-dns-01-cloudflare": "~1.1.2",
         "acme-dns-01-digitalocean": "~3.0.1",
         "acme-dns-01-duckdns": "~3.0.1",
         "acme-dns-01-dnsimple": "~3.0.0",
