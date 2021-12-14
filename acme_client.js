@@ -325,19 +325,31 @@ module.exports = function(RED) {
                 case "get_certificate_info":
                     if (fs.existsSync(node.certFilePath)) {
                         var certPem  = fs.readFileSync(node.certFilePath, 'ascii');
+                        
+                        // A pem file can contain multiple certificates (e.g. certificate chain), so lets separate those into an array
+                        var certificateChain = certPem.split("\n\n");
                    
                         try {
-                            var certInformation = certinfo.info(certPem);
+                            var payload = [];
                             
-                            if (certInformation) {
-                                // Calculate in how many days the certificate will expire, and add the result to the information.
-                                // A negative result indicates that the certificate has already expired...
-                                var timeDifference = certInformation.expiresAt - Date.now();
-                                var daysDifference = Math.round(timeDifference / (24 * 60 * 60 * 1000)); 
-                                certInformation.expiresInDays = daysDifference;
-                            }
+                            // Get information about every available certificate
+                            certificateChain.forEach(function(certificate) {
+                                if (certificate.trim() !==  "") {
+                                    var certInformation = certinfo.info(certificate);
+                                    
+                                    if (certInformation) {
+                                        // Calculate in how many days the certificate will expire, and add the result to the information.
+                                        // A negative result indicates that the certificate has already expired...
+                                        var timeDifference = certInformation.expiresAt - Date.now();
+                                        var daysDifference = Math.round(timeDifference / (24 * 60 * 60 * 1000)); 
+                                        certInformation.expiresInDays = daysDifference;
+                                    }
+                                    
+                                    payload.push(certInformation);
+                                }
+                            });
  
-                            node.send([{payload: certInformation, topic: "get_certificate_info"}, null]);
+                            node.send([{payload: payload, topic: "get_certificate_info"}, null]);
                         }
                         catch (err) {
                             handleError(node, "GET_CERT_INFO", err);
